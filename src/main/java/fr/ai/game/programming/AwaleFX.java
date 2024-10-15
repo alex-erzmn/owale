@@ -15,8 +15,6 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.stage.Stage;
-import javafx.animation.PauseTransition;
-import javafx.util.Duration;
 
 import static fr.ai.game.programming.common.AwaleBoard.NUM_HOLES;
 import static fr.ai.game.programming.common.AwaleBoard.TOTAL_HOLES;
@@ -161,19 +159,15 @@ public class AwaleFX extends Application {
             awaleBoard.setCurrentPlayer(2);
             statusLabel.setText("AI's Turn");
 
-            PauseTransition pause = new PauseTransition(Duration.seconds(1));
-            pause.setOnFinished(event -> {
-                int aiMove = aiManager.findBestMove();
-                awaleBoard.sowSeeds(aiMove);
-                awaleBoard.setCurrentPlayer(1);
-                statusLabel.setText("Player 1's Turn");
+            int aiMove = aiManager.findBestMove();
+            awaleBoard.sowSeeds(aiMove);
+            awaleBoard.setCurrentPlayer(1);
+            statusLabel.setText("Player 1's Turn");
 
-                updateBoard();
-                if (awaleBoard.checkGameOver()) {
-                    endGame();
-                }
-            });
-            pause.play();
+            updateBoard();
+            if (awaleBoard.checkGameOver()) {
+                endGame();
+            }
         });
 
         return button;

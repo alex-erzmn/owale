@@ -5,7 +5,7 @@ import fr.ai.game.programming.common.AwaleBoard;
 public class AIManager {
 
     private final AwaleBoard awaleBoard;
-    private static final int MAX_DEPTH = 8; // Maximum depth for Minimax search
+    private static final int MAX_DEPTH = 16; // Maximum depth for Minimax search
 
     public AIManager(AwaleBoard awaleBoard) {
         this.awaleBoard = awaleBoard;
