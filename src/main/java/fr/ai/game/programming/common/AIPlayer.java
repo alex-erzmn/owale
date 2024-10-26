@@ -15,14 +15,14 @@ public class AIPlayer implements Player {
         System.out.println("AI is making a move...");
 
         int currentPlayerId = awaleBoard.getCurrentPlayer();
-        int aiMove;
+        AIManager.Move aiMove;
 
         if (currentPlayerId == 1) {
             aiMove = aiManager.findRandomMove(1);
         } else {
-            aiMove = aiManager.findBestMove(2);
+            aiMove = aiManager.findRandomMove(2);
         }
-        System.out.println("AI move: " + aiMove);
-        awaleBoard.sowSeeds(aiMove);
+        System.out.println("AI chose to sow " + aiMove.hole() + " " + aiMove.color() + " seeds.");
+        awaleBoard.sowSeeds(aiMove.hole(), aiMove.color());
     }
 }

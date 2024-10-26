@@ -1,15 +1,17 @@
 package fr.ai.game.programming.common;
 
-import static fr.ai.game.programming.common.AwaleBoard.PLAYER_HOLES;
 import static fr.ai.game.programming.common.AwaleBoard.TOTAL_HOLES;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
- * AI manager for the Awale game. Implements the Minimax algorithm with Alpha-Beta pruning and a random move selection.
+ * AI manager for the Awale game. Implements the Minimax algorithm with Alpha-Beta pruning and random move selection.
  */
 public class AIManager {
 
     private final AwaleBoard awaleBoard;
-    private static final int MAX_DEPTH = 20; // Maximum depth for Minimax algorithm
+    private static final int MAX_DEPTH = 5; // Maximum depth for Minimax algorithm
 
     public AIManager(AwaleBoard awaleBoard) {
         this.awaleBoard = awaleBoard;
@@ -18,126 +20,107 @@ public class AIManager {
     /**
      * Find a random move for the player.
      * @param player the player for which to find a move
-     * @return the index of the hole to sow seeds
+     * @return a tuple with the color of seeds and the number of seeds
      */
-    public int findRandomMove(int player) {
-        int move = -1;
-        int[] board = awaleBoard.getBoard();
+    public Move findRandomMove(int player) {
+        if(awaleBoard.checkGameOver()) {
+            return null;
+        }
+        Seed.Color seedColor = null;
+        int hole = 0;
 
-        // Set bounds for random selection based on the player
-        int startHole = (player == 2) ? 0 : PLAYER_HOLES; // Player 1's holes are 6-11, Player 2's holes are 0-5
-        int endHole = (player == 2) ? PLAYER_HOLES : TOTAL_HOLES; // Player 1 ends at 12, Player 2 ends at 6
+        // Define the range of holes based on the player and the new board layout
+        int[] playerHoles = (player == 1)
+                ? new int[]{0, 2, 4, 6, 8, 10, 12, 14}  // Player 1's holes (even indices)
+                : new int[]{1, 3, 5, 7, 9, 11, 13, 15}; // Player 2's holes (odd indices)
 
-        while (move == -1) {
-            int randomHole = startHole + (int) (Math.random() * (endHole - startHole));
-            if (board[randomHole] > 1) {
-                move = randomHole;
+        // Continue searching until a valid hole and color are selected
+        while (seedColor == null) {
+            int randomIndex = (int) (Math.random() * playerHoles.length); // Pick a random hole index for the player
+            int randomHole = playerHoles[randomIndex]; // Get the actual hole number
+            List<Seed> seedsInHole = awaleBoard.getSeedsInHole(randomHole); // Get all seeds from the hole
+
+            if (!seedsInHole.isEmpty()) {
+                // Select a random seed from the available seeds in the hole to determine the color
+                int randomSeedIndex = (int) (Math.random() * seedsInHole.size());
+                seedColor = seedsInHole.get(randomSeedIndex).getColor(); // Get the color of the random seed
+                hole = randomHole; // Set the hole to the selected random hole
             }
         }
-        return move;
+
+        // Return the chosen hole and color of seeds
+        return new Move(hole, seedColor);
     }
 
     /**
      * Find the best move for the player using the Minimax algorithm with Alpha-Beta pruning.
      * @param player the player for which to find the best move
-     * @return the index of the hole to sow seeds
+     * @return the best move which includes seed color and number of seeds
      */
-    public int findBestMove(int player) {
-        int bestMove = -1;
-        int bestValue = (player == 2) ? Integer.MIN_VALUE : Integer.MAX_VALUE;
-        int[] board = awaleBoard.getBoard();
+    // Changes in the findBestMove method
+    public Move findBestMove(int player) {
+        Move bestMove = null;
+        int bestValue = (player == 1) ? Integer.MIN_VALUE : Integer.MAX_VALUE;
 
-        int startHole = (player == 1) ? PLAYER_HOLES : 0; // Player 1 checks holes 6-11
-        int endHole = (player == 1) ? TOTAL_HOLES : PLAYER_HOLES; // Player 2 checks holes 0-5
+        // Ensure correct hole range for each player
+        int[] playerHoles = (player == 1)
+                ? new int[]{0, 2, 4, 6, 8, 10, 12, 14}  // Player 1's holes (even indices)
+                : new int[]{1, 3, 5, 7, 9, 11, 13, 15}; // Player 2's holes (odd indices)
 
-        for (int i = startHole; i < endHole; i++) {
-            if (board[i] > 1) {
-                int[] newBoard = makeMoveForSimulation(board.clone(), i);
-                int moveValue = minimax(newBoard, MAX_DEPTH, Integer.MIN_VALUE, Integer.MAX_VALUE, player == 1);
+        for (int holeIndex : playerHoles) {
+            List<Seed> seedsInHole = awaleBoard.getSeedsInHole(holeIndex);
 
-                if (player == 2) {
-                    if (moveValue > bestValue) {
-                        bestValue = moveValue;
-                        bestMove = i;
-                    }
-                } else {
-                    if (moveValue < bestValue) {
-                        bestValue = moveValue;
-                        bestMove = i;
+            if (!seedsInHole.isEmpty()) {
+                for (Seed seed : seedsInHole) {
+                    // Ensure to consider seeds of the current player's color
+                    if ((player == 1 && seed.getColor() == Seed.Color.RED) ||
+                            (player == 2 && seed.getColor() == Seed.Color.BLUE)) {
+
+                        int moveValue = minimax(awaleBoard.getBoard(), holeIndex, seed.getColor(), 1, MAX_DEPTH, Integer.MIN_VALUE, Integer.MAX_VALUE, player == 1);
+
+                        if (player == 1) {
+                            if (moveValue > bestValue) {
+                                bestValue = moveValue;
+                                bestMove = new Move(holeIndex, seed.getColor());
+                            }
+                        } else {
+                            if (moveValue < bestValue) {
+                                bestValue = moveValue;
+                                bestMove = new Move(holeIndex, seed.getColor());
+                            }
+                        }
                     }
                 }
             }
         }
-        if (bestMove == -1) {
-            bestMove = findRandomMove(player); //TODO: WORKAROUND!
-        }
-        return bestMove;
+
+        return (bestMove != null) ? bestMove : findRandomMove(player);
     }
 
+    // Changes in the makeMoveForSimulation method
+    private List<Seed>[] makeMoveForSimulation(List<Seed>[] board, int hole, Seed.Color seedColor, int seedsToSow) {
+        List<Seed> seedsInHole = new ArrayList<>(board[hole]);
+        List<Seed> seedsToSowList = new ArrayList<>();
 
-    /**
-     * Minimax algorithm with Alpha-Beta pruning.
-     * @param board the current board state
-     * @param depth the depth of the search tree
-     * @param alpha the alpha value for pruning
-     * @param beta the beta value for pruning
-     * @param isMaximizingPlayer whether the player is maximizing or minimizing
-     * @return the evaluation value of the board state
-     */
-    private int minimax(int[] board, int depth, int alpha, int beta, boolean isMaximizingPlayer) {
-        // Check for game over or depth limit
-        if (depth == 0 ) {
-            return awaleBoard.evaluateBoard();
+        for (Seed seed : seedsInHole) {
+            if (seed.getColor() == seedColor && seedsToSowList.size() < seedsToSow) {
+                seedsToSowList.add(seed);
+            }
         }
 
-        if (isMaximizingPlayer) {
-            // AI is maximizing
-            int maxEval = Integer.MIN_VALUE;
-            for (int i = 0; i < PLAYER_HOLES; i++) {
-                if (board[i] > 1) {
-                    int[] newBoard = makeMoveForSimulation(board.clone(), i);
-                    int eval = minimax(newBoard, depth - 1, alpha, beta, false);
-                    maxEval = Math.max(maxEval, eval);
-                    alpha = Math.max(alpha, eval);
-                    if (beta <= alpha) {
-                        break; // Beta cut-off
-                    }
-                }
-            }
-            return maxEval;
-        } else {
-            // Opponent (Player 1) is minimizing
-            int minEval = Integer.MAX_VALUE;
-            for (int i = PLAYER_HOLES; i < TOTAL_HOLES; i++) {
-                if (board[i] > 1) {
-                    int[] newBoard = makeMoveForSimulation(board.clone(), i);
-                    int eval = minimax(newBoard, depth - 1, alpha, beta, true);
-                    minEval = Math.min(minEval, eval);
-                    beta = Math.min(beta, eval);
-                    if (beta <= alpha) {
-                        break; // Alpha cut-off
-                    }
-                }
-            }
-            return minEval;
-        }
-    }
+        seedsInHole.removeAll(seedsToSowList);
+        board[hole] = seedsInHole;
 
-    /**
-     * Simulate making a move on the board.
-     * @param board the current board state
-     * @param hole the hole to sow seeds
-     * @return the new board state after the move
-     */
-    private int[] makeMoveForSimulation(int[] board, int hole) {
-        int seeds = board[hole];
-        board[hole] = 0;
         int pos = hole;
+        for (Seed seed : seedsToSowList) {
+            do {
+                pos = ((pos % TOTAL_HOLES) + 1) % TOTAL_HOLES; // Move to the next hole, looping around
+            } while (pos == hole); // Skip the original hole
 
-        while (seeds > 0) {
-            pos = (pos + 1) % TOTAL_HOLES;
-            board[pos]++;
-            seeds--;
+            // Ensure that the seeds are placed in the correct holes
+            if (seedColor == Seed.Color.BLUE || pos % 2 == 0) { // Correctly identify holes for each color
+                board[pos].add(seed);
+            }
         }
 
         captureSeedsForSimulation(board, pos);
@@ -145,25 +128,64 @@ public class AIManager {
         return board;
     }
 
-    /**
-     * Capture seeds based on the game rules for the simulation.
-     * @param board the current board state
-     * @param lastHole the last hole where a seed was sown
-     */
-    private void captureSeedsForSimulation(int[] board, int lastHole) {
-        int capturedSeeds = 0;
-        int player = (lastHole < PLAYER_HOLES) ? 2 : 1;
+    // Adjustments in the minimax method
+    private int minimax(List<Seed>[] board, int hole, Seed.Color seedColor, int seedsToSow, int depth, int alpha, int beta, boolean isMaximizingPlayer) {
+        if (depth == 0 || awaleBoard.checkGameOver()) {
+            // Differentiate evaluation based on the current player
+            if (isMaximizingPlayer) {
+                return awaleBoard.evaluateBoard(); // Evaluating for the maximizing player
+            } else {
+                return -awaleBoard.evaluateBoard(); // Evaluating for the minimizing player
+            }
+        }
 
-        while (lastHole >= 0 && lastHole < TOTAL_HOLES &&
-                ((player == 1 && lastHole >= PLAYER_HOLES) ||
-                        (player == 2 && lastHole < PLAYER_HOLES))) {
-            if (board[lastHole] == 2 || board[lastHole] == 3) {
-                capturedSeeds += board[lastHole];
-                board[lastHole] = 0;
+        if (isMaximizingPlayer) {
+            int maxEval = Integer.MIN_VALUE;
+            for (int i = 0; i < TOTAL_HOLES; i++) {
+                if (!board[i].isEmpty() && (i % 2 == 0)) { // Only consider Player 1's holes
+                    List<Seed>[] newBoard = makeMoveForSimulation(board.clone(), i, seedColor, seedsToSow);
+                    int eval = minimax(newBoard, i, seedColor, seedsToSow, depth - 1, alpha, beta, false);
+                    maxEval = Math.max(maxEval, eval);
+                    alpha = Math.max(alpha, eval);
+                    if (beta <= alpha) {
+                        break;  // Beta cut-off
+                    }
+                }
+            }
+            return maxEval;
+        } else {
+            int minEval = Integer.MAX_VALUE;
+            for (int i = 0; i < TOTAL_HOLES; i++) {
+                if (!board[i].isEmpty() && (i % 2 == 1)) { // Only consider Player 2's holes
+                    List<Seed>[] newBoard = makeMoveForSimulation(board.clone(), i, seedColor, seedsToSow);
+                    int eval = minimax(newBoard, i, seedColor, seedsToSow, depth - 1, alpha, beta, true);
+                    minEval = Math.min(minEval, eval);
+                    beta = Math.min(beta, eval);
+                    if (beta <= alpha) {
+                        break;  // Alpha cut-off
+                    }
+                }
+            }
+            return minEval;
+        }
+    }
+
+
+    private void captureSeedsForSimulation(List<Seed>[] board, int lastHole) {
+        int player = (lastHole % 2 == 1) ? 2 : 1; // Determine the player based on hole number
+
+        while (lastHole >= 1 && lastHole <= TOTAL_HOLES &&
+                ((player == 1 && lastHole % 2 == 0) || (player == 2 && lastHole % 2 == 1))) {
+            int seedCount = board[lastHole].size();
+            if (seedCount == 2 || seedCount == 3) {
+                board[lastHole].clear(); // Capture the seeds by clearing the hole
             } else {
                 break;
             }
             lastHole--;
         }
+    }
+
+    public record Move(int hole, Seed.Color color) {
     }
 }

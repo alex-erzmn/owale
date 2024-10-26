@@ -1,16 +1,13 @@
 package fr.ai.game.programming.client;
 
-import fr.ai.game.programming.common.AIManager;
-import fr.ai.game.programming.common.AIPlayer;
-import fr.ai.game.programming.common.AwaleBoard;
-import fr.ai.game.programming.common.HumanPlayer;
-import fr.ai.game.programming.common.Player;
+import fr.ai.game.programming.common.*;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.ChoiceDialog;
 import javafx.scene.control.Label;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.layout.GridPane;
@@ -20,7 +17,12 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
+import javafx.scene.text.Text;
+import javafx.scene.text.TextFlow;
 import javafx.util.Duration;
+
+import java.util.List;
+import java.util.Optional;
 
 import static fr.ai.game.programming.common.AwaleBoard.PLAYER_HOLES;
 import static fr.ai.game.programming.common.AwaleBoard.TOTAL_HOLES;
@@ -39,8 +41,8 @@ public class GamePresenter {
     private Label player1Label = new Label("Player 1 Seeds: 0");
     private Label player2Label = new Label("Player 2 Seeds: 0");
     private Label statusLabel = new Label("Player 1's Turn");
-    private Player player1;  // Human or AI player
-    private Player player2;  // AI player
+    private Player player1;
+    private Player player2;
 
     public GamePresenter(SceneManager sceneManager, boolean isPlayerVsAI) {
         this.awaleBoard = new AwaleBoard();
@@ -56,18 +58,14 @@ public class GamePresenter {
     }
 
     public Scene createGameScene() {
-        // Full background covering the entire scene
         StackPane rootPane = new StackPane();
 
-        // Create a gradient background for the entire scene
         rootPane.setStyle("-fx-background-color: linear-gradient(from 0% 0% to 100% 100%, #4a90e2, #50e3c2);");
 
-        // Board and controls container
         VBox layout = new VBox(20);
         layout.setAlignment(Pos.CENTER);
         layout.setPadding(new Insets(20));
 
-        // Awale gameboard with transparent background and rounded corners
         GridPane grid = setupBoard();
         grid.setStyle("-fx-background-color: rgba(255, 255, 255, 0.7); -fx-background-radius: 20; -fx-padding: 20; "
                 + "-fx-border-radius: 20; -fx-border-color: rgba(0, 0, 0, 0.2); -fx-border-width: 2px;");
@@ -77,11 +75,10 @@ public class GamePresenter {
 
         layout.getChildren().addAll(grid, createStatusBar(), createRestartBox());
 
-        // Add everything to root pane
         rootPane.getChildren().add(layout);
 
         updateBoard();
-        performNextMove(); // Automatically check and proceed with the next move (whether AI or human)
+        performNextMove();
 
         return new Scene(rootPane, 800, 500);
     }
@@ -92,7 +89,7 @@ public class GamePresenter {
         statusBar.setPadding(new Insets(20));
         statusBar.setStyle("-fx-background-color: rgba(255,255,255,0.8); -fx-padding: 15; -fx-background-radius: 10;");
 
-        player1Label.setTextFill(Color.web("#4a90e2")); // Similar color scheme
+        player1Label.setTextFill(Color.web("#4a90e2"));
         player2Label.setTextFill(Color.web("#4a90e2"));
         statusLabel.setTextFill(Color.web("#50e3c2"));
         statusLabel.setFont(Font.font("Arial", FontWeight.BOLD, 24));
@@ -101,7 +98,7 @@ public class GamePresenter {
     }
 
     private HBox createRestartBox() {
-        restartButton = createStyledButton("Back to Start"); // Styled button similar to StartPresenter
+        restartButton = createStyledButton("Back to Start");
         restartButton.setOnAction(e -> sceneManager.showStartScene());
         HBox restartBox = new HBox(restartButton);
         restartBox.setAlignment(Pos.CENTER);
@@ -121,29 +118,54 @@ public class GamePresenter {
         grid.setHgap(15);
         grid.setVgap(15);
 
-        // Setup player buttons in grid
         setupPlayerButtons(grid);
         return grid;
     }
 
     private void setupPlayerButtons(GridPane grid) {
-        // Player 2 buttons
-        for (int i = PLAYER_HOLES - 1; i >= 0; i--) {
-            player2Buttons[i] = createButton(i, false); // Initially disabled
-            grid.add(player2Buttons[i], PLAYER_HOLES - i - 1, 0);
+        // Top row (holes 1 to 8)
+        for (int i = 0; i < 8; i++) {
+            // Determine the correct hole index for the top row
+            int holeIndex = i + 1; // 1, 2, 3, ..., 8
+
+            // Player 1 owns odd holes, Player 2 owns even holes
+            if (holeIndex % 2 != 0) {
+                // Odd index belongs to Player 1
+                player1Buttons[i / 2] = createButton(holeIndex - 1, player1 instanceof HumanPlayer);
+                grid.add(player1Buttons[i / 2], i, 0); // Row 0
+            } else {
+                // Even index belongs to Player 2
+                player2Buttons[i / 2] = createButton(holeIndex - 1, player2 instanceof HumanPlayer);
+                player2Buttons[i / 2].setDisable(true);
+                grid.add(player2Buttons[i / 2], i, 0); // Row 0
+            }
         }
 
-        // Player 1 buttons
-        for (int i = PLAYER_HOLES; i < TOTAL_HOLES; i++) {
-            player1Buttons[i - PLAYER_HOLES] = createButton(i, player1 instanceof HumanPlayer); // Enabled for human player
-            grid.add(player1Buttons[i - PLAYER_HOLES], i - PLAYER_HOLES, 1);
+        // Bottom row (holes 16 to 9, in reverse)
+        for (int i = 0; i < 8; i++) {
+            // Determine the correct hole index for the bottom row
+            int holeIndex = 16 - i; // 16, 15, 14, ..., 9
+
+            // Player 1 owns odd holes, Player 2 owns even holes
+            if (holeIndex % 2 != 0) {
+                // Odd index belongs to Player 1
+                player1Buttons[4 + (i / 2)] = createButton(holeIndex - 1, player1 instanceof HumanPlayer);
+                grid.add(player1Buttons[4 + (i / 2)], i, 1); // Row 1
+            } else {
+                // Even index belongs to Player 2
+                player2Buttons[4 + (i / 2)] = createButton(holeIndex - 1, player2 instanceof HumanPlayer);
+                player2Buttons[4 + (i / 2)].setDisable(true);
+                grid.add(player2Buttons[4 + (i / 2)], i, 1); // Row 1
+            }
         }
     }
 
+
+
     private Button createButton(int index, boolean isHumanPlayer) {
-        Button button = new Button("4"); // Initial seed count
-        button.setFont(Font.font("Arial", FontWeight.BOLD, 22));
-        button.setPrefSize(80, 80);
+        Button button = new Button();
+        button.setPrefSize(200, 200);
+        button.setFont(Font.font("Arial", FontWeight.BOLD, 26));
         button.setStyle("-fx-background-color: #F4A460; -fx-border-color: black; -fx-border-radius: 40; -fx-background-radius: 40;");
         button.setTextFill(Color.WHITE);
 
@@ -152,7 +174,6 @@ public class GamePresenter {
         shadow.setOffsetY(3);
         button.setEffect(shadow);
 
-        // Hover effect similar to StartPresenter
         button.setOnMouseEntered(e -> button.setStyle("-fx-background-color: #FF8C00; -fx-border-color: black; -fx-border-radius: 40; -fx-background-radius: 40;"));
         button.setOnMouseExited(e -> button.setStyle("-fx-background-color: #F4A460; -fx-border-color: black; -fx-border-radius: 40; -fx-background-radius: 40;"));
 
@@ -192,25 +213,46 @@ public class GamePresenter {
 
     // Handle human player move
     private void makeHumansMove(int index) {
-
         if (awaleBoard.getCurrentPlayer() != 1) {
             sceneManager.showError("It's not your turn!");
             return;
         }
 
-        if (awaleBoard.getBoard()[index] <= 1) {
-            sceneManager.showError("Invalid move! Not enough seeds.");
-            return;
+        String[] colors = {"BLUE", "RED"};
+        ChoiceDialog<String> dialog = new ChoiceDialog<>(colors[0], colors);
+        dialog.setTitle("Choose Seed Color");
+        dialog.setHeaderText("Select the color of the seeds you want to sow:");
+        dialog.setContentText("Color:");
+
+        Optional<String> result = dialog.showAndWait();
+        if (result.isPresent()) {
+            String selectedColor = result.get();
+
+            Seed.Color chosenColor;
+            if (selectedColor.equals("BLUE")) {
+                chosenColor = Seed.Color.BLUE;
+            } else if (selectedColor.equals("RED")) {
+                chosenColor = Seed.Color.RED;
+            } else {
+                sceneManager.showError("Invalid color selection!");
+                return;
+            }
+
+            if (awaleBoard.getBoard()[index].isEmpty() || !awaleBoard.hasSeeds(index, chosenColor)) {
+                sceneManager.showError("Invalid move! Not enough seeds of the selected color.");
+                return;
+            }
+
+            System.out.println("Player 1 chose to sow seeds from hole " + index);
+            awaleBoard.sowSeeds(index, chosenColor);
+
+            updateBoard();
+            disableAllButtons();
+            awaleBoard.switchPlayer();
+            if (checkGameOver()) return;
+
+            performNextMove();
         }
-
-        awaleBoard.sowSeeds(index);
-
-        updateBoard();
-        disableAllButtons();
-        awaleBoard.switchPlayer();
-        if (checkGameOver()) return;
-
-        performNextMove();
     }
 
     private void performNextMove() {
@@ -219,7 +261,6 @@ public class GamePresenter {
 
         if (currentPlayer instanceof AIPlayer) {
 
-            // Delay AI move for 2 seconds to make it visible
             Timeline timeline = new Timeline(new KeyFrame(Duration.seconds(2), event -> {
                 ((AIPlayer) currentPlayer).makeMove(awaleBoard);
                 updateBoard();
@@ -248,17 +289,64 @@ public class GamePresenter {
     }
 
     private void updateBoard() {
-        int[] board = awaleBoard.getBoard();
+        List<Seed>[] board = awaleBoard.getBoard();
 
-        for (int i = 0; i < PLAYER_HOLES; i++) {
-            player2Buttons[i].setText(String.valueOf(board[i]));
-        }
-        for (int i = PLAYER_HOLES; i < TOTAL_HOLES; i++) {
-            player1Buttons[i - PLAYER_HOLES].setText(String.valueOf(board[i]));
+        // Update the top row (holes 1 to 8)
+        for (int i = 0; i < 8; i++) {
+            int holeIndex = i + 1; // Holes 1 to 8
+            if (holeIndex % 2 != 0) {
+                // Odd hole index belongs to Player 1
+                player1Buttons[i / 2].setGraphic(createColoredText(board[holeIndex-1]));
+            } else {
+                // Even hole index belongs to Player 2
+                player2Buttons[i / 2].setGraphic(createColoredText(board[holeIndex-1]));
+            }
         }
 
+        // Update the bottom row (holes 16 to 9 in reverse)
+        for (int i = 0; i < 8; i++) {
+            int holeIndex = 16 - i; // Holes 16 to 9
+            if (holeIndex % 2 != 0) {
+                // Odd hole index belongs to Player 1
+                player1Buttons[4 + (i / 2)].setGraphic(createColoredText(board[holeIndex-1]));
+            } else {
+                // Even hole index belongs to Player 2
+                player2Buttons[4 + (i / 2)].setGraphic(createColoredText(board[holeIndex-1]));
+            }
+        }
+
+        // Update player labels with the seed counts
         player1Label.setText("Player 1 Seeds: " + awaleBoard.getPlayer1Seeds());
         player2Label.setText("Player 2 Seeds: " + awaleBoard.getPlayer2Seeds());
+
+        // Debugging information: print seed counts for each hole
+        for (int i = 0; i < TOTAL_HOLES; i++) {
+            int blueCount = (int) board[i].stream().filter(seed -> seed.getColor() == Seed.Color.BLUE).count();
+            int redCount = (int) board[i].stream().filter(seed -> seed.getColor() == Seed.Color.RED).count();
+            System.out.println("Hole " + i + ": Blue Seeds: " + blueCount + ", Red Seeds: " + redCount);
+        }
+    }
+
+
+
+    /**
+         * Create a TextFlow containing the colored seed counts.
+         * @param seeds The list of seeds in the hole.
+         * @return TextFlow with blue and red colored numbers.
+         */
+    private TextFlow createColoredText(List<Seed> seeds) {
+        long blueSeeds = seeds.stream().filter(seed -> seed.getColor() == Seed.Color.BLUE).count();
+        long redSeeds = seeds.stream().filter(seed -> seed.getColor() == Seed.Color.RED).count();
+
+        Text blueText = new Text(blueSeeds > 0 ? String.valueOf(blueSeeds) : "");
+        blueText.setFill(Color.BLUE);
+        blueText.setFont(Font.font("Arial", FontWeight.BOLD, 26));
+
+        Text redText = new Text(redSeeds > 0 ? " " + redSeeds : "");
+        redText.setFill(Color.RED);
+        redText.setFont(Font.font("Arial", FontWeight.BOLD, 26));
+
+        return new TextFlow(blueText, redText);
     }
 
     private boolean checkGameOver() {
@@ -280,16 +368,33 @@ public class GamePresenter {
     }
 
     private void enablePlayerButtons(int playerId) {
+        // Enable buttons for Player 1
         if (playerId == 1) {
-            for (int i = 0; i < player1Buttons.length; i++) {
-                player1Buttons[i].setDisable(awaleBoard.getBoard()[PLAYER_HOLES + i] <= 1);
+            // Enable all Player 1's buttons
+            for (Button button : player1Buttons) {
+                button.setDisable(false);
             }
-        } else {
+
+            // Disable all Player 2's buttons
             for (Button button : player2Buttons) {
                 button.setDisable(true);
             }
         }
+        // Enable buttons for Player 2
+        else {
+            // Enable all Player 2's buttons
+            for (Button button : player2Buttons) {
+                button.setDisable(false);
+            }
+
+            // Disable all Player 1's buttons
+            for (Button button : player1Buttons) {
+                button.setDisable(true);
+            }
+        }
     }
+
+
 
     private void disableAllButtons() {
         for (Button button : player1Buttons) {
