@@ -1,11 +1,14 @@
 package fr.ai.game.programming.client;
 
 import fr.ai.game.programming.game.Game;
+import fr.ai.game.programming.game.GameStatus;
 import fr.ai.game.programming.game.elements.Seed;
 import fr.ai.game.programming.game.player.HumanPlayer;
+import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
@@ -21,6 +24,7 @@ import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextFlow;
 
+import javax.swing.*;
 import java.util.List;
 import java.util.Optional;
 
@@ -54,7 +58,8 @@ public class GamePresenter implements Observer {
 
     @Override
     public void onGameOver() {
-        showGameOver();
+        GameStatus status = game.getBoard().checkGameStatus();
+        showGameOver(status);
     }
 
     @Override
@@ -272,10 +277,10 @@ public class GamePresenter implements Observer {
             int holeIndex = i + 1; // Holes 1 to 8
             if (holeIndex % 2 != 0) {
                 // Odd hole index belongs to Player 1
-                player1Buttons[i / 2].setGraphic(createColoredText(board[holeIndex-1]));
+                player1Buttons[i / 2].setGraphic(createColoredText(board[holeIndex - 1]));
             } else {
                 // Even hole index belongs to Player 2
-                player2Buttons[i / 2].setGraphic(createColoredText(board[holeIndex-1]));
+                player2Buttons[i / 2].setGraphic(createColoredText(board[holeIndex - 1]));
             }
         }
 
@@ -284,10 +289,10 @@ public class GamePresenter implements Observer {
             int holeIndex = 16 - i; // Holes 16 to 9
             if (holeIndex % 2 != 0) {
                 // Odd hole index belongs to Player 1
-                player1Buttons[4 + (i / 2)].setGraphic(createColoredText(board[holeIndex-1]));
+                player1Buttons[4 + (i / 2)].setGraphic(createColoredText(board[holeIndex - 1]));
             } else {
                 // Even hole index belongs to Player 2
-                player2Buttons[4 + (i / 2)].setGraphic(createColoredText(board[holeIndex-1]));
+                player2Buttons[4 + (i / 2)].setGraphic(createColoredText(board[holeIndex - 1]));
             }
         }
 
@@ -344,11 +349,12 @@ public class GamePresenter implements Observer {
                 : ODD_COLOR + "(" + RESET + holeSummary + ODD_COLOR + ")" + RESET;
     }
 
-        /**
-         * Create a TextFlow containing the colored seed counts.
-         * @param seeds The list of seeds in the hole.
-         * @return TextFlow with blue and red colored numbers.
-         */
+    /**
+     * Create a TextFlow containing the colored seed counts.
+     *
+     * @param seeds The list of seeds in the hole.
+     * @return TextFlow with blue and red colored numbers.
+     */
     private TextFlow createColoredText(List<Seed> seeds) {
         long blueSeeds = seeds.stream().filter(seed -> seed.getColor() == Seed.Color.BLUE).count();
         long redSeeds = seeds.stream().filter(seed -> seed.getColor() == Seed.Color.RED).count();
@@ -364,14 +370,32 @@ public class GamePresenter implements Observer {
         return new TextFlow(blueText, redText);
     }
 
-    private void showGameOver() {
+    private void showGameOver(GameStatus status) {
         statusLabel.setText("Game Over!");
+
+        // Disable all buttons
         for (Button button : player1Buttons) {
             button.setDisable(true);
         }
         for (Button button : player2Buttons) {
             button.setDisable(true);
         }
+
+        // Schedule the dialog to be shown later
+        Platform.runLater(() -> {
+            String message = "Reason: " + status.getReason();
+            if (!status.getWinner().equals("Draw")) {
+                message += "\nWinner: " + status.getWinner();
+            } else {
+                message += "\nIt's a draw!";
+            }
+
+            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            alert.setTitle("Game Over");
+            alert.setHeaderText(null);
+            alert.setContentText(message);
+            alert.showAndWait();
+        });
     }
 
     private void enablePlayerButtons(int playerId) {

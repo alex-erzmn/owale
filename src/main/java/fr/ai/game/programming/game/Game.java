@@ -88,7 +88,7 @@ public class Game {
 
             timeline.setCycleCount(1);
             timeline.play();
-        } else if (currentPlayer instanceof MQTTOpponent) {
+        } else if (isCurrentPlayerMQTT()) {
             ((MQTTOpponent) currentPlayer).setOnMoveProcessed(v -> {
                 board.switchPlayer();
                 notifyObservers(GameEventType.UPDATE_BOARD);
@@ -106,6 +106,10 @@ public class Game {
     public Player getCurrentPlayer() {
         return board.getCurrentPlayer() == 1 ? player1 : player2;
     }
+    
+    public boolean isCurrentPlayerMQTT() {
+        return getCurrentPlayer() instanceof MQTTOpponent;
+    }
 
     public boolean isCurrentPlayerAI() {
         return getCurrentPlayer() instanceof AIPlayer;
@@ -116,12 +120,13 @@ public class Game {
     }
 
     public boolean checkGameOver() {
-        boolean gameOver = board.checkGameOver();
-        if (gameOver) {
-            notifyObservers(GameEventType.GAME_OVER); // Game is over, update the observers
+        GameStatus status = board.checkGameStatus();
+        if (status.isGameOver()) {
+            notifyObservers(GameEventType.GAME_OVER); // Pass the status object
+            System.out.println("Game over! Winner: " + status.getWinner() + " Reason: " + status.getReason());
+            System.out.println("------------------------------------------------------------------------");
         }
-        return gameOver;
+        return status.isGameOver();
     }
-
-
 }
+

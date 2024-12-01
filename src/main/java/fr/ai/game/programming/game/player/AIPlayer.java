@@ -23,9 +23,9 @@ public class AIPlayer implements Player {
         if (currentPlayerId == 1) {
             aiMove = aiManager.findRandomMove(1);
         } else {
-            aiMove = aiManager.findRandomMove(2);
+            aiMove = aiManager.findBestMove(2);
         }
-        System.out.println("AI chose to sow " + aiMove.color() + " seeds from hole " + aiMove.hole());
+        System.out.println("Player" + currentPlayerId + " chose to sow " + aiMove.color() + " seeds from hole " + aiMove.hole());
         board.sowSeeds(aiMove.hole(), aiMove.color());
     }
 }

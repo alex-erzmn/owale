@@ -1,5 +1,6 @@
 package fr.ai.game.programming.game.elements;
 
+import fr.ai.game.programming.game.GameStatus;
 import lombok.Getter;
 
 import java.util.ArrayList;
@@ -61,54 +62,84 @@ public class Board {
      * - One player has no valid move anymore (0 seeds in each player's hole).
      * @return true if the game is over, false otherwise
      */
-    public boolean checkGameOver() {
+    public GameStatus checkGameStatus() {
         int totalSeedsOnBoard = 0;
 
-        // Calculate total seeds remaining on the board
         for (List<Seed> hole : holes) {
             totalSeedsOnBoard += hole.size();
         }
 
-        // Check for winning conditions
+        // Check if Player 1 has won
         if (player1Seeds >= 33) {
-            return true;
+            return new GameStatus(true, "Player 1", "More than 32 seeds collected");
         }
+
+        // Check if Player 2 has won
         if (player2Seeds >= 33) {
-            return true;
+            return new GameStatus(true, "Player 2", "More than 32 seeds collected");
         }
 
-        // Check for draw condition
+        // Check for a draw
         if (player1Seeds == 32 && player2Seeds == 32) {
-            return true;
+            return new GameStatus(true, "Draw", "Both players collected 32 seeds");
         }
 
-        // Check for fewer than 8 seeds remaining
+        // Check for insufficient seeds on the board
         if (totalSeedsOnBoard < 8) {
-            return true;
+            String winner = player1Seeds > player2Seeds ? "Player 1" :
+                    player1Seeds < player2Seeds ? "Player 2" : "Draw";
+            return new GameStatus(true, winner, "Less than 8 seeds remaining");
         }
 
         // Check for valid moves for current player
         boolean hasValidMoveForPlayer1 = false;
         boolean hasValidMoveForPlayer2 = false;
 
-        // Check each hole for valid moves
-        for (int i = 0; i < PLAYER_HOLES; i++) {
-            if (!holes[i].isEmpty()) { // Check if there's at least one seed in the hole
+        // Get the correct holes for each player
+        int[] player1Holes = getPlayerHoles(1);
+        int[] player2Holes = getPlayerHoles(2);
+
+        // Check if player 1 has a valid move
+        for (int i : player1Holes) {
+            if (!holes[i].isEmpty()) {
                 hasValidMoveForPlayer1 = true;
+                break;  // No need to check further if one valid move is found
             }
-            if (!holes[i + PLAYER_HOLES].isEmpty()) { // Check Player 2's holes
+        }
+
+        // Check if player 2 has a valid move
+        for (int i : player2Holes) {
+            if (!holes[i].isEmpty()) {
                 hasValidMoveForPlayer2 = true;
+                break;  // No need to check further if one valid move is found
             }
         }
 
-        // If current player has no valid moves
+        // If the current player has no valid moves
         if ((currentPlayer == 1 && !hasValidMoveForPlayer1) || (currentPlayer == 2 && !hasValidMoveForPlayer2)) {
-            captureRemainingSeeds(currentPlayer == 1 ? 2 : 1);
-            return true;
+            captureRemainingSeeds(currentPlayer == 1 ? 2 : 1);  // Capture the remaining seeds of the opponent
+            String winner = player1Seeds > player2Seeds ? "Player 1" :
+                    player1Seeds < player2Seeds ? "Player 2" : "Draw";
+            return new GameStatus(true, winner, "No valid moves left");
         }
 
-        // If none of the end conditions are met, return false
-        return false;
+        return new GameStatus(false, null, null); // Game is not over
+    }
+
+    public boolean isWinningState(int player) {
+        int opponent = (player == 1) ? 2 : 1;
+
+        // Check if the opponent has no legal moves left
+        for (int hole : getPlayerHoles(opponent)) {
+            for (Seed.Color color : Seed.Color.values()) {
+                if (hasSeeds(hole, color)) {
+                    return false; // Opponent still has a valid move
+                }
+            }
+        }
+
+        // Opponent cannot make a move, so the player wins
+        return true;
     }
 
     /**
@@ -127,7 +158,6 @@ public class Board {
         }
 
         List<Seed> seedsToSow = takeSeedsFromHole(hole, seedColor);
-        System.out.println("Seeds to sow: " + seedsToSow.size());
 
         int lastHole = hole;
         if (seedColor == Seed.Color.BLUE) {
@@ -243,6 +273,37 @@ public class Board {
      * @return the heuristic value
      */
     public int evaluateBoard() {
-        return player2Seeds - player1Seeds;
+        if (isWinningState(1)) {
+            return Integer.MAX_VALUE; // Winning state for Player 1
+        }
+        if (isWinningState(2)) {
+            return Integer.MIN_VALUE; // Winning state for Player 2
+        }
+
+        // Neutral evaluation: Score based on seed counts
+        return getPlayer1Seeds() - getPlayer2Seeds();
+    }
+
+    public Board copy() {
+        Board copy = new Board();
+        for (int i = 0; i < TOTAL_HOLES; i++) {
+            copy.holes[i].clear();
+            copy.holes[i].addAll(holes[i]);
+        }
+        copy.player1Seeds = player1Seeds;
+        copy.player2Seeds = player2Seeds;
+        copy.currentPlayer = currentPlayer;
+        return copy;
+    }
+
+    /**
+     * Get the holes belonging to a player.
+     * @param player the player (1 or 2)
+     * @return an array of hole indices belonging to the player
+     */
+    private int[] getPlayerHoles(int player) {
+        return (player == 1)
+                ? new int[]{0, 2, 4, 6, 8, 10, 12, 14}
+                : new int[]{1, 3, 5, 7, 9, 11, 13, 15};
     }
 }
