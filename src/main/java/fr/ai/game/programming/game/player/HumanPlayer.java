@@ -1,4 +1,6 @@
-package fr.ai.game.programming.common;
+package fr.ai.game.programming.game.player;
+
+import fr.ai.game.programming.game.elements.Board;
 
 /**
  * Human player for the Awale game.
@@ -7,7 +9,7 @@ package fr.ai.game.programming.common;
 public class HumanPlayer implements Player {
 
     @Override
-    public void makeMove(AwaleBoard awaleBoard) {
+    public void makeMove(Board board) {
         System.out.println("Human player is making a move...");
     }
 }

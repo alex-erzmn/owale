@@ -1,6 +1,9 @@
-package fr.ai.game.programming.common;
+package fr.ai.game.programming.game.player;
 
-import static fr.ai.game.programming.common.AwaleBoard.TOTAL_HOLES;
+import fr.ai.game.programming.game.elements.Board;
+import fr.ai.game.programming.game.elements.Seed;
+
+import static fr.ai.game.programming.game.elements.Board.TOTAL_HOLES;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -10,11 +13,11 @@ import java.util.List;
  */
 public class AIManager {
 
-    private final AwaleBoard awaleBoard;
+    private final Board board;
     private static final int MAX_DEPTH = 5; // Maximum depth for Minimax algorithm
 
-    public AIManager(AwaleBoard awaleBoard) {
-        this.awaleBoard = awaleBoard;
+    public AIManager(Board board) {
+        this.board = board;
     }
 
     /**
@@ -23,7 +26,7 @@ public class AIManager {
      * @return a tuple with the color of seeds and the number of seeds
      */
     public Move findRandomMove(int player) {
-        if(awaleBoard.checkGameOver()) {
+        if(board.checkGameOver()) {
             return null;
         }
         Seed.Color seedColor = null;
@@ -38,7 +41,7 @@ public class AIManager {
         while (seedColor == null) {
             int randomIndex = (int) (Math.random() * playerHoles.length); // Pick a random hole index for the player
             int randomHole = playerHoles[randomIndex]; // Get the actual hole number
-            List<Seed> seedsInHole = awaleBoard.getSeedsInHole(randomHole); // Get all seeds from the hole
+            List<Seed> seedsInHole = board.getSeedsInHole(randomHole); // Get all seeds from the hole
 
             if (!seedsInHole.isEmpty()) {
                 // Select a random seed from the available seeds in the hole to determine the color
@@ -57,7 +60,7 @@ public class AIManager {
      * @param player the player for which to find the best move
      * @return the best move which includes seed color and number of seeds
      */
-    // Changes in the findBestMove method
+    // TODO: Implement Minimax algorithm with Alpha-Beta pruning
     public Move findBestMove(int player) {
         Move bestMove = null;
         int bestValue = (player == 1) ? Integer.MIN_VALUE : Integer.MAX_VALUE;
@@ -68,7 +71,7 @@ public class AIManager {
                 : new int[]{1, 3, 5, 7, 9, 11, 13, 15}; // Player 2's holes (odd indices)
 
         for (int holeIndex : playerHoles) {
-            List<Seed> seedsInHole = awaleBoard.getSeedsInHole(holeIndex);
+            List<Seed> seedsInHole = board.getSeedsInHole(holeIndex);
 
             if (!seedsInHole.isEmpty()) {
                 for (Seed seed : seedsInHole) {
@@ -76,7 +79,7 @@ public class AIManager {
                     if ((player == 1 && seed.getColor() == Seed.Color.RED) ||
                             (player == 2 && seed.getColor() == Seed.Color.BLUE)) {
 
-                        int moveValue = minimax(awaleBoard.getBoard(), holeIndex, seed.getColor(), 1, MAX_DEPTH, Integer.MIN_VALUE, Integer.MAX_VALUE, player == 1);
+                        int moveValue = minimax(board.getHoles(), holeIndex, seed.getColor(), 1, MAX_DEPTH, Integer.MIN_VALUE, Integer.MAX_VALUE, player == 1);
 
                         if (player == 1) {
                             if (moveValue > bestValue) {
@@ -130,12 +133,12 @@ public class AIManager {
 
     // Adjustments in the minimax method
     private int minimax(List<Seed>[] board, int hole, Seed.Color seedColor, int seedsToSow, int depth, int alpha, int beta, boolean isMaximizingPlayer) {
-        if (depth == 0 || awaleBoard.checkGameOver()) {
+        if (depth == 0 || this.board.checkGameOver()) {
             // Differentiate evaluation based on the current player
             if (isMaximizingPlayer) {
-                return awaleBoard.evaluateBoard(); // Evaluating for the maximizing player
+                return this.board.evaluateBoard(); // Evaluating for the maximizing player
             } else {
-                return -awaleBoard.evaluateBoard(); // Evaluating for the minimizing player
+                return -this.board.evaluateBoard(); // Evaluating for the minimizing player
             }
         }
 
@@ -184,8 +187,5 @@ public class AIManager {
             }
             lastHole--;
         }
-    }
-
-    public record Move(int hole, Seed.Color color) {
     }
 }

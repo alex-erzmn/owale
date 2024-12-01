@@ -1,4 +1,4 @@
-package fr.ai.game.programming.common;
+package fr.ai.game.programming.game.elements;
 
 import lombok.Getter;
 
