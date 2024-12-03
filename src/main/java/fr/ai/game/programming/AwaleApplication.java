@@ -4,6 +4,10 @@ import fr.ai.game.programming.client.SceneManager;
 import fr.ai.game.programming.client.StartPresenter;
 import javafx.scene.image.Image;
 import javafx.stage.Stage;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 /**
  * Main class of the Awalé game.

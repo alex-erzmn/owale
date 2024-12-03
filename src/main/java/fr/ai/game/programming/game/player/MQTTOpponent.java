@@ -2,45 +2,49 @@ package fr.ai.game.programming.game.player;
 
 import fr.ai.game.programming.game.elements.Board;
 import fr.ai.game.programming.game.elements.Seed;
-import fr.ai.game.programming.mqtt.MQTTService;
+import fr.ai.game.programming.mqtt.service.MqttSubscribe;
 import lombok.Setter;
 
 import java.util.function.Consumer;
 
 public class MQTTOpponent implements Player {
-    private final MQTTService mqttService;
+    private final MqttSubscribe mqttSubscribe; // Use MqttSubscribe to listen for moves
     @Setter
     private Consumer<Void> onMoveProcessed;
 
-    public MQTTOpponent(MQTTService mqttService) {
-        this.mqttService = mqttService;
+    public MQTTOpponent(MqttSubscribe mqttSubscribe) {
+        this.mqttSubscribe = mqttSubscribe;
+
+
     }
 
     @Override
     public void makeMove(Board board) {
-        processMoveFromServer("4,B", board);
+        // Set up MQTT message callback
+        this.mqttSubscribe.setCallback(moveData -> processMoveFromServer(moveData, board));
+        // Wait for the opponent's move to arrive over MQTT
+        mqttSubscribe.subscribeMqtt();
     }
 
-    public void processMoveFromServer(String moveData, Board board) {
-        // Process the received move
-        // Example: parse moveData, make the move
+    private void processMoveFromServer(String moveData, Board board) {
+        // Parse and process the move data
         int holeIndex = parseHoleIndex(moveData);
         Seed.Color chosenColor = parseColor(moveData);
+
+        // Apply the move to the board
         board.sowSeeds(holeIndex, chosenColor);
 
-        // Notify game that the move is complete
+        // Notify the game loop that the move is done
         if (onMoveProcessed != null) {
             onMoveProcessed.accept(null);
         }
     }
 
     private int parseHoleIndex(String moveData) {
-        // Parse hole index from move data
         return Integer.parseInt(moveData.split(",")[0]);
     }
 
     private Seed.Color parseColor(String moveData) {
-        // Parse seed color from move data
         return Seed.Color.valueOf(moveData.split(",")[1]);
     }
 }

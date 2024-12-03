@@ -8,7 +8,6 @@ import java.util.List;
  * AI manager for the Awale game. Implements the Minimax algorithm with Alpha-Beta pruning and random move selection.
  */
 public class AIManager {
-
     private final Board board;
     private static final int MAX_DEPTH = 5; // Maximum depth for Minimax algorithm
 
@@ -26,9 +25,7 @@ public class AIManager {
         int hole = 0;
 
         // Define the range of holes based on the player and the new board layout
-        int[] playerHoles = (player == 1)
-                ? new int[]{0, 2, 4, 6, 8, 10, 12, 14}  // Player 1's holes (even indices)
-                : new int[]{1, 3, 5, 7, 9, 11, 13, 15}; // Player 2's holes (odd indices)
+        int[] playerHoles = board.getPlayerHoles(player);
 
         // Continue searching until a valid hole and color are selected
         while (seedColor == null) {
@@ -63,7 +60,9 @@ public class AIManager {
         int bestValue = (player == 1) ? Integer.MIN_VALUE : Integer.MAX_VALUE;
 
         // Define the player's holes based on the game rules
-        int[] playerHoles = getPlayerHoles(player);
+        int[] playerHoles = board.getPlayerHoles(player);
+
+        // TODO: Sort the Holes based on any heuristic to improve the performance of the algorithm
 
         // Iterate through all holes to find the best move
         for (int hole : playerHoles) {
@@ -76,7 +75,7 @@ public class AIManager {
 
                     // Calculate the utility of the move using the minimax algorithm
                     int moveValue = minimax(simulatedBoard, MAX_DEPTH, alpha, beta, player == 2);
-
+                    System.out.println("minimaxValue: " + moveValue);
                     // Update the best move if the current move has a better value
                     if ((player == 1 && moveValue > bestValue) || (player == 2 && moveValue < bestValue)) {
                         bestValue = moveValue;
@@ -115,10 +114,10 @@ public class AIManager {
         if (depth == 0 || simulatedBoard.checkGameStatus().isGameOver()) {
             return evaluateBoard(simulatedBoard); // Evaluate the utility of the board
         }
-
+        System.out.println(isMaximizing);
         if (isMaximizing) {
             int maxEval = Integer.MIN_VALUE;
-            for (int hole : getPlayerHoles(2)) {
+            for (int hole : board.getPlayerHoles(2)) {
                 for (Seed.Color color : Seed.Color.values()) {
                     if (simulatedBoard.hasSeeds(hole, color)) {
                         // Simulate the move
@@ -146,7 +145,7 @@ public class AIManager {
             return maxEval;
         } else {
             int minEval = Integer.MAX_VALUE;
-            for (int hole : getPlayerHoles(1)) {
+            for (int hole : board.getPlayerHoles(1)) {
                 for (Seed.Color color : Seed.Color.values()) {
                     if (simulatedBoard.hasSeeds(hole, color)) {
                         // Simulate the move
@@ -173,18 +172,6 @@ public class AIManager {
             }
             return minEval;
         }
-    }
-
-
-    /**
-     * Get the holes belonging to a player.
-     * @param player the player (1 or 2)
-     * @return an array of hole indices belonging to the player
-     */
-    private int[] getPlayerHoles(int player) {
-        return (player == 1)
-                ? new int[]{0, 2, 4, 6, 8, 10, 12, 14}
-                : new int[]{1, 3, 5, 7, 9, 11, 13, 15};
     }
 
     /**

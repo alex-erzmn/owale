@@ -301,9 +301,9 @@ public class Board {
      * @param player the player (1 or 2)
      * @return an array of hole indices belonging to the player
      */
-    private int[] getPlayerHoles(int player) {
+    public int[] getPlayerHoles(int player) {
         return (player == 1)
-                ? new int[]{0, 2, 4, 6, 8, 10, 12, 14}
-                : new int[]{1, 3, 5, 7, 9, 11, 13, 15};
+                ? new int[]{0, 2, 4, 6, 8, 10, 12, 14}  // 1, 3, 5, 7, 9, 11, 13, 15
+                : new int[]{1, 3, 5, 7, 9, 11, 13, 15}; // 2, 4, 6, 8, 10, 12, 14, 16
     }
 }

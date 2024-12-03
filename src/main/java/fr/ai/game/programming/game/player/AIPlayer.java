@@ -21,7 +21,7 @@ public class AIPlayer implements Player {
         Move aiMove;
 
         if (currentPlayerId == 1) {
-            aiMove = aiManager.findRandomMove(1);
+            aiMove = aiManager.findBestMove(1);
         } else {
             aiMove = aiManager.findBestMove(2);
         }

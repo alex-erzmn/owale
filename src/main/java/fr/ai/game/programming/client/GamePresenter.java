@@ -305,6 +305,10 @@ public class GamePresenter implements Observer {
     }
 
     private void printBoardLayout(List<Seed>[] board) {
+        final String RESET = "\u001B[0m";
+        final String EVEN_COLOR = "\u001B[32m"; // Green for even numbers
+        final String ODD_COLOR = "\u001B[33m"; // Yellow for odd numbers
+        System.out.println(EVEN_COLOR + "Player 1 Seeds: " + RESET + game.getBoard().getPlayer1Seeds() + " | " + ODD_COLOR + "Player 2 Seeds: " + RESET + game.getBoard().getPlayer2Seeds());
         // Top row (holes 0 to 7)
         for (int i = 0; i < 8; i++) {
             String formattedHole = formatHoleWithColor(i, holeSummary(board[i]));
