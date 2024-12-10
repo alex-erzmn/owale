@@ -1,25 +1,10 @@
 package fr.ai.game.programming.game;
 
-public class GameStatus {
-    private final boolean isGameOver;
-    private final String winner; // "Player 1", "Player 2", or "Draw"
-    private final String reason; // E.g., "More than 32 seeds", "No valid moves", etc.
+import lombok.Getter;
 
-    public GameStatus(boolean isGameOver, String winner, String reason) {
-        this.isGameOver = isGameOver;
-        this.winner = winner;
-        this.reason = reason;
-    }
-
-    public boolean isGameOver() {
-        return isGameOver;
-    }
-
-    public String getWinner() {
-        return winner;
-    }
-
-    public String getReason() {
-        return reason;
-    }
+/**
+ * @param winner "Player 1", "Player 2", or "Draw"
+ * @param reason E.g., "More than 32 seeds", "No valid moves", etc.
+ */
+public record GameStatus(boolean isGameOver, @Getter int winner, @Getter String reason) {
 }

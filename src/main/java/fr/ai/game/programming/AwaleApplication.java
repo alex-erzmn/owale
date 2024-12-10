@@ -1,30 +1,44 @@
 package fr.ai.game.programming;
 
-import fr.ai.game.programming.client.SceneManager;
-import fr.ai.game.programming.client.StartPresenter;
-import javafx.scene.image.Image;
-import javafx.stage.Stage;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.CommandLineRunner;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
+import fr.ai.game.programming.game.Game;
+import fr.ai.game.programming.game.GameFactory;
+import fr.ai.game.programming.game.GameMode;
+import java.util.Scanner;
 
 /**
  * Main class of the Awalé game.
  */
-public class AwaleApplication extends javafx.application.Application {
+public class AwaleApplication {
 
-    @Override
-    public void start(Stage primaryStage) {
-        primaryStage.getIcons().add(new Image("/images/seeds.png"));
-        primaryStage.setTitle("Awalé Game");
-        SceneManager sceneManager = new SceneManager(primaryStage);
+    public void start() {
+        System.out.println("Welcome to the Awalé Application.");
+        System.out.println("Please choose the Game Mode:");
+        System.out.println("1 - Player vs AI");
+        System.out.println("2 - AI vs Player");
+        System.out.println("3 - AI vs AI");
 
-        StartPresenter startScenePresenter = new StartPresenter(sceneManager);
+        Scanner scanner = new Scanner(System.in);
+        int choice = -1;
 
-        sceneManager.setStartScene(startScenePresenter.createStartScene());
+        while (choice < 1 || choice > 3) {
+            System.out.print("Enter your choice (1, 2, or 3): ");
+            try {
+                choice = Integer.parseInt(scanner.nextLine());
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid input. Please enter a number between 1 and 3.");
+            }
+        }
 
-        sceneManager.showStartScene();
+        GameMode selectedMode = switch (choice) {
+            case 1 -> GameMode.PLAYER_VS_AI_LOCAL;
+            case 2 -> GameMode.AI_VS_PLAYER_LOCAL;
+            case 3 -> GameMode.AI_VS_AI_LOCAL;
+            default -> null;
+        };
+
+        Game game = GameFactory.createAwaleGame(selectedMode);
+        game.start();
+
+        scanner.close();
     }
-
 }

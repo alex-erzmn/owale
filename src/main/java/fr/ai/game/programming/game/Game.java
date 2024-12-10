@@ -1,23 +1,17 @@
 package fr.ai.game.programming.game;
 
-import fr.ai.game.programming.client.Observer;
 import fr.ai.game.programming.game.elements.Board;
 import fr.ai.game.programming.game.elements.Seed;
 import fr.ai.game.programming.game.player.*;
-import javafx.animation.KeyFrame;
-import javafx.animation.Timeline;
-import javafx.application.Platform;
-import javafx.util.Duration;
 import lombok.Getter;
-import org.eclipse.paho.client.mqttv3.MqttException;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import static fr.ai.game.programming.game.elements.Board.TOTAL_HOLES;
 
 /**
  * Represents an Awale game.
@@ -32,39 +26,18 @@ public class Game {
     @Getter
     private final Player player2;
     private boolean isRunning;
-    private final List<Observer> observers;
 
     public Game(Board board, Player player1, Player player2) {
         this.board = board;
         this.player1 = player1;
         this.player2 = player2;
         this.isRunning = false;
-        observers = new ArrayList<>();
-    }
-
-    public void addObserver(Observer observer) {
-        observers.add(observer);
-    }
-
-    private void notifyObservers(GameEventType eventType) {
-        for (Observer observer : observers) {
-            switch (eventType) {
-                case UPDATE_BOARD:
-                    observer.onBoardUpdated();
-                    break;
-                case ENABLE_BUTTONS:
-                    observer.onEnablePlayerButtons();
-                    break;
-                case GAME_OVER:
-                    observer.onGameOver();
-                    break;
-            }
-        }
     }
 
     public void start() {
-        notifyObservers(GameEventType.UPDATE_BOARD);
         this.isRunning = true;
+        // Print the board layout in the console
+        board.printBoardLayout();
         performNextMove();
     }
 
@@ -74,62 +47,39 @@ public class Game {
 
     public void performNextMove() {
         if(!isRunning) return;
-        if (checkGameOver()) return;
 
         Player currentPlayer = getCurrentPlayer();
         if (isCurrentPlayerAI()) {
+            currentPlayer.makeMove(board);
+            board.switchPlayer();
 
-            Timeline timeline = new Timeline(new KeyFrame(Duration.seconds(0.1), event -> {
-                try {
-                    currentPlayer.makeMove(board);
-                } catch (MqttException e) {
-                    throw new RuntimeException(e);
-                }
-                board.switchPlayer();
-                notifyObservers(GameEventType.UPDATE_BOARD);
+            // Print the board layout in the console
+            board.printBoardLayout();
 
-                if (checkGameOver()) return;
-
+            if (!checkGameOver()) {
                 performNextMove();
-            }));
-
-            timeline.setCycleCount(1);
-            timeline.play();
-        } else if (isCurrentPlayerMQTT()) {
-            ((MQTTOpponent) currentPlayer).setOnMoveProcessed(v -> {
-
-                board.switchPlayer();
-                notifyObservers(GameEventType.UPDATE_BOARD);
-
-                if (!checkGameOver()) {
-                    performNextMove(); // Continue loop after move is received
-                }
-            });
+            }
         } else if (isCurrentPlayerHuman()) {
-            notifyObservers(GameEventType.ENABLE_BUTTONS); // TODO: Remove if only via console allowed
-            ((HumanPlayer) currentPlayer).makeMove(board);
+            currentPlayer.makeMove(board);
 
-            // Start a new thread to listen for console input
-            new Thread(() -> {
-                // This loop will keep running until a valid move is entered
-                while (true) { // Continue prompting for valid input until correct
-                    try {
-                        System.out.println("Enter your move (e.g., '3B') or use the buttons:");
-                        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
-                        String input = reader.readLine();
+            // Read the player's move from the console
+            while (true) {
+                try {
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+                    String input = reader.readLine();
 
-                        if (input != null && !input.isEmpty()) {
-                            if (processConsoleMove(input, board)) {
-                                break;  // Exit the loop if the move is valid
-                            } else {
-                                System.out.println("Invalid move, please try again."); // Inform the user to try again
-                            }
+                    if (input != null && !input.isEmpty()) {
+                        if (processConsoleMove(input, board)) {
+                            break;
+                        } else {
+                            System.out.print("Enter your move (e.g., '3B'): ");
                         }
-                    } catch (IOException e) {
-                        e.printStackTrace();
                     }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    System.out.println("An error occurred while reading input. Please try again.");
                 }
-            }).start();
+            }
         }
     }
 
@@ -146,33 +96,41 @@ public class Game {
             }
 
             // Extract hole index and color
-            int holeIndex = Integer.parseInt(matcher.group(1)) - 1; // Convert to 0-based index
+            int holeIndex = Integer.parseInt(matcher.group(1));
             Seed.Color chosenColor = parseColor(matcher.group(2));
 
             // Validate hole index
-            if (holeIndex < 0 || holeIndex >= board.getHoles().length) {
+            if (holeIndex < 1 || holeIndex > TOTAL_HOLES) {
                 System.out.println("Invalid hole number. Please choose a number between 1 and " + board.getHoles().length + ".");
                 return false;
             }
 
-            if (holeIndex % 2 == 1) {
-                System.out.println("Invalid hole number. This hole is not yours.");
+            if (holeIndex % 2 != board.getCurrentPlayer() % 2) {
+                System.out.println("Invalid hole number " + holeIndex +". This hole is not yours " + "player" + board.getCurrentPlayer() + ".");
                 return false;
             }
 
             // Apply the move
-            board.sowSeeds(holeIndex, chosenColor);
+            try {
+                int zeroBasedHoleIndex = holeIndex - 1; // Convert to 0-based index
+                board.sowSeeds(zeroBasedHoleIndex, chosenColor);
+                System.out.println("Player " + board.getCurrentPlayer() + " chose to sow " + chosenColor + " seeds from hole " + holeIndex + ".");
+            } catch (IllegalArgumentException e) {
+                System.out.println(e.getMessage());
+                return false;
+            }
 
             // Update the game state on the JavaFX Application Thread
-            Platform.runLater(() -> {
-                board.switchPlayer();
-                notifyObservers(GameEventType.UPDATE_BOARD);
+            board.switchPlayer();
 
-                // Continue the game loop
-                if (!checkGameOver()) {
-                    performNextMove();
-                }
-            });
+            // Print the board layout in the console
+            board.printBoardLayout();
+
+
+            // Continue the game loop
+            if (!checkGameOver()) {
+                performNextMove();
+            }
 
             return true; // Move successfully processed
 
@@ -197,10 +155,6 @@ public class Game {
     public Player getCurrentPlayer() {
         return board.getCurrentPlayer() == 1 ? player1 : player2;
     }
-    
-    public boolean isCurrentPlayerMQTT() {
-        return getCurrentPlayer() instanceof MQTTOpponent;
-    }
 
     public boolean isCurrentPlayerAI() {
         return getCurrentPlayer() instanceof AIPlayer;
@@ -212,12 +166,32 @@ public class Game {
 
     public boolean checkGameOver() {
         GameStatus status = board.checkGameStatus();
-        if (status.isGameOver()) {
-            notifyObservers(GameEventType.GAME_OVER); // Pass the status object
-            System.out.println("Game over! Winner: " + status.getWinner() + " Reason: " + status.getReason());
-            System.out.println("------------------------------------------------------------------------");
+        if (status.isGameOver() && isRunning) {
+            stop();
+            showGameOver(status);
         }
         return status.isGameOver();
+    }
+
+    private void showGameOver(GameStatus status) {
+        System.out.println("Game Over!");
+
+        // Print reason for game over
+        System.out.println("Reason: " + status.reason());
+
+        // Print the winner or draw message
+        if (status.winner() != 0) {
+            System.out.println("Winner: " + "Player " + status.winner());
+        } else {
+            System.out.println("It's a draw!");
+        }
+
+        System.out.println("Thank you for playing Awalé!");
+        System.out.println();
+
+        System.out.println(" -#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#- FINAL BOARD -#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#- ");
+        board.printBoardLayout();
+        System.out.println(" -#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#- ");
     }
 }
 

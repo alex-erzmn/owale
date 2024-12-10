@@ -56,7 +56,7 @@ public class AIManager {
         int beta = Integer.MAX_VALUE;
 
         // Define a high-level utility variable to track the best move
-        Move bestMove = findRandomMove(player); //TODO: This is only workaround because there is an error which causes sometimes to not find a solution with minimax
+        Move bestMove = findRandomMove(player); // This is only workaround because there is an error which causes sometimes to not find a solution with minimax
         int bestValue = (player == 1) ? Integer.MIN_VALUE : Integer.MAX_VALUE;
 
         // Define the player's holes based on the game rules
@@ -75,7 +75,7 @@ public class AIManager {
 
                     // Calculate the utility of the move using the minimax algorithm
                     int moveValue = minimax(simulatedBoard, MAX_DEPTH, alpha, beta, player == 2);
-                    System.out.println("minimaxValue: " + moveValue);
+
                     // Update the best move if the current move has a better value
                     if ((player == 1 && moveValue > bestValue) || (player == 2 && moveValue < bestValue)) {
                         bestValue = moveValue;
@@ -114,7 +114,7 @@ public class AIManager {
         if (depth == 0 || simulatedBoard.checkGameStatus().isGameOver()) {
             return evaluateBoard(simulatedBoard); // Evaluate the utility of the board
         }
-        System.out.println(isMaximizing);
+
         if (isMaximizing) {
             int maxEval = Integer.MIN_VALUE;
             for (int hole : board.getPlayerHoles(2)) {

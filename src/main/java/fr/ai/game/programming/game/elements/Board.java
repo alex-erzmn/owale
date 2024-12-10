@@ -6,7 +6,6 @@ import lombok.Getter;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Random;
 
 public class Board {
 
@@ -35,8 +34,7 @@ public class Board {
         this.player1Seeds = 0;
         this.player2Seeds = 0;
 
-        Random random = new Random();
-        this.currentPlayer = random.nextBoolean() ? 1 : 2;
+        this.currentPlayer = 1; // Player 1 starts the game
     }
 
     public boolean hasSeeds(int hole, Seed.Color seedColor) {
@@ -71,23 +69,23 @@ public class Board {
 
         // Check if Player 1 has won
         if (player1Seeds >= 33) {
-            return new GameStatus(true, "Player 1", "More than 32 seeds collected");
+            return new GameStatus(true, 1, "More than 32 seeds collected");
         }
 
         // Check if Player 2 has won
         if (player2Seeds >= 33) {
-            return new GameStatus(true, "Player 2", "More than 32 seeds collected");
+            return new GameStatus(true, 2, "More than 32 seeds collected");
         }
 
         // Check for a draw
         if (player1Seeds == 32 && player2Seeds == 32) {
-            return new GameStatus(true, "Draw", "Both players collected 32 seeds");
+            return new GameStatus(true, 0, "Both players collected 32 seeds");
         }
 
         // Check for insufficient seeds on the board
         if (totalSeedsOnBoard < 8) {
-            String winner = player1Seeds > player2Seeds ? "Player 1" :
-                    player1Seeds < player2Seeds ? "Player 2" : "Draw";
+            int winner = player1Seeds > player2Seeds ? 1 :
+                    player1Seeds < player2Seeds ? 2 : 0;
             return new GameStatus(true, winner, "Less than 8 seeds remaining");
         }
 
@@ -117,13 +115,13 @@ public class Board {
 
         // If the current player has no valid moves
         if ((currentPlayer == 1 && !hasValidMoveForPlayer1) || (currentPlayer == 2 && !hasValidMoveForPlayer2)) {
-            captureRemainingSeeds(currentPlayer == 1 ? 2 : 1);  // Capture the remaining seeds of the opponent
-            String winner = player1Seeds > player2Seeds ? "Player 1" :
-                    player1Seeds < player2Seeds ? "Player 2" : "Draw";
+            int winner = player1Seeds > player2Seeds ? 1 :
+                    player1Seeds < player2Seeds ? 2 : 0;
+            captureRemainingSeeds(winner);
             return new GameStatus(true, winner, "No valid moves left");
         }
 
-        return new GameStatus(false, null, null); // Game is not over
+        return new GameStatus(false, -1, null); // Game is not over
     }
 
     public boolean isWinningState(int player) {
@@ -147,14 +145,13 @@ public class Board {
      */
     public void sowSeeds(int hole, Seed.Color seedColor) {
         if (hole < 0 || hole >= TOTAL_HOLES || holes[hole].isEmpty() || !hasSeeds(hole, seedColor)) {
-            System.out.println(hole + " " + holes[hole] + " " + !hasSeeds(hole, seedColor));
-            throw new IllegalArgumentException("Invalid move!");
+            throw new IllegalArgumentException("Invalid move! No " + seedColor + " seeds in hole " + (hole + 1) + ". Choose another color or hole.");
         }
 
         if (hole % 2 == 1 && currentPlayer == 1) {
-            throw new IllegalArgumentException("Player 1 cannot sow seeds from Player 2's holes!");
+            throw new IllegalArgumentException("Player 1 cannot sow seeds from Player 2's holes! Choose another hole.");
         } else if (hole % 2 == 0 && currentPlayer == 2) {
-            throw new IllegalArgumentException("Player 2 cannot sow seeds from Player 1's holes!");
+            throw new IllegalArgumentException("Player 2 cannot sow seeds from Player 1's holes! Choose another hole.");
         }
 
         List<Seed> seedsToSow = takeSeedsFromHole(hole, seedColor);
@@ -254,13 +251,14 @@ public class Board {
     }
 
     private void captureRemainingSeeds(int player) {
+
         if (player == 1) {
-            for (int i = 0; i < PLAYER_HOLES; i++) {
+            for (int i = 0; i < TOTAL_HOLES; i++) {
                 player1Seeds += holes[i].size();
                 holes[i].clear();
             }
         } else {
-            for (int i = PLAYER_HOLES; i < TOTAL_HOLES; i++) {
+            for (int i = 0; i < TOTAL_HOLES; i++) {
                 player2Seeds += holes[i].size();
                 holes[i].clear();
             }
@@ -271,6 +269,7 @@ public class Board {
      * Evaluates the board state based on the heuristic. The heuristic evaluates the difference between Player 2's and
      * Player 1's seeds.
      * @return the heuristic value
+     * TODO: Implement a more sophisticated heuristic function
      */
     public int evaluateBoard() {
         if (isWinningState(1)) {
@@ -305,5 +304,96 @@ public class Board {
         return (player == 1)
                 ? new int[]{0, 2, 4, 6, 8, 10, 12, 14}  // 1, 3, 5, 7, 9, 11, 13, 15
                 : new int[]{1, 3, 5, 7, 9, 11, 13, 15}; // 2, 4, 6, 8, 10, 12, 14, 16
+    }
+
+    /**
+     * Print the board layout in the console with a table-like grid and better spacing.
+     */
+    public void printBoardLayout() {
+        System.out.println();
+        final String RESET = "\u001B[0m";
+        final String EVEN_COLOR = "\u001B[32m"; // Green for even numbers
+        final String ODD_COLOR = "\u001B[33m"; // Yellow for odd numbers
+
+        // Display seed counts for both players
+        System.out.println(EVEN_COLOR + "Player 1 Seeds: " + RESET + this.getPlayer1Seeds() + " | "
+                + ODD_COLOR + "Player 2 Seeds: " + RESET + this.getPlayer2Seeds());
+        System.out.println();
+
+        // Print header for grid
+        printRowSeparator();
+        System.out.print("|");
+        for (int i = 0; i < 8; i++) {
+            String formattedHole = formatHoleWithColor(i, holeSummary(holes[i]));
+            System.out.print("    " + centerText(formattedHole, 15) + "    |");
+        }
+        System.out.println();
+
+        // Print separator between rows
+        printRowSeparator();
+
+        // Print bottom row (holes 15 to 8 in reverse)
+        System.out.print("|");
+        for (int i = 15; i >= 8; i--) {
+            String formattedHole = formatHoleWithColor(i, holeSummary(holes[i]));
+            System.out.print("    " + centerText(formattedHole, 15) + "    |");
+        }
+        System.out.println();
+        printRowSeparator();
+        System.out.println();
+    }
+
+    /**
+     * Generates a summary of the seeds in a hole with colored formatting.
+     */
+    private String holeSummary(List<Seed> seeds) {
+        int blueCount = (int) seeds.stream().filter(seed -> seed.getColor() == Seed.Color.BLUE).count();
+        int redCount = (int) seeds.stream().filter(seed -> seed.getColor() == Seed.Color.RED).count();
+
+        // Define ANSI colors
+        final String RESET = "\u001B[0m";
+        final String BLUE_SEED_COLOR = "\u001B[34m"; // Blue for B seeds
+        final String RED_SEED_COLOR = "\u001B[31m";  // Red for R seeds
+        final String GREY_COLOR = "\u001B[90m";      // Grey for 0 counts
+
+        // Apply grey color if the count is 0
+        String blueText = (blueCount > 0 ? BLUE_SEED_COLOR : GREY_COLOR) + blueCount + "B" + RESET;
+        String redText = (redCount > 0 ? RED_SEED_COLOR : GREY_COLOR) + redCount + "R" + RESET;
+
+        return blueText + " " + redText;
+    }
+
+    /**
+     * Formats the hole summary with color based on the index (even or odd).
+     */
+    private String formatHoleWithColor(int holeIndex, String holeSummary) {
+        // Define ANSI escape codes for colors
+        final String RESET = "\u001B[0m"; // Reset color
+        final String EVEN_COLOR = "\u001B[32m"; // Green for even numbers
+        final String ODD_COLOR = "\u001B[33m"; // Yellow for odd numbers
+
+        // Apply color to parentheses based on hole index (even or odd)
+        return (holeIndex % 2 == 0)
+                ? EVEN_COLOR + "(" + RESET + holeSummary + EVEN_COLOR + ")" + RESET
+                : ODD_COLOR + "(" + RESET + holeSummary + ODD_COLOR + ")" + RESET;
+    }
+
+    /**
+     * Prints a horizontal row separator for the grid.
+     */
+    private void printRowSeparator() {
+        System.out.println("+---------------+---------------+---------------+---------------+---------------+---------------+---------------+---------------+");
+    }
+
+    /**
+     * Centers the given text within a fixed width, padding with spaces as needed.
+     */
+    private String centerText(String text, int width) {
+        if (width <= text.length()) {
+            return text; // If the text is too long, return it as is
+        }
+        int padding = (width - text.length()) / 2;
+        String paddingSpaces = " ".repeat(padding);
+        return paddingSpaces + text + " ".repeat(width - text.length() - padding);
     }
 }

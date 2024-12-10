@@ -10,6 +10,6 @@ public class HumanPlayer implements Player {
 
     @Override
     public void makeMove(Board board) {
-        System.out.println("Human player is making a move...");
+        System.out.print("Enter your move (e.g., '3B'): ");
     }
 }
