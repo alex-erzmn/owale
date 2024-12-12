@@ -2,24 +2,23 @@ package fr.ai.game.programming.game.elements;
 
 import fr.ai.game.programming.game.GameStatus;
 import lombok.Getter;
+import lombok.Setter;
 
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+@Getter
 public class Board {
 
-    public static final int PLAYER_HOLES = 8;
     public static final int INITIAL_SEEDS_PER_COLOR = 2;
     public static final int TOTAL_HOLES = 16;
+    @Setter
+    private int turns = 0;
 
-    @Getter
     private final List<Seed>[] holes;
-    @Getter
     private int player1Seeds;
-    @Getter
     private int player2Seeds;
-    @Getter
     private int currentPlayer;
 
     public Board() {
@@ -115,8 +114,7 @@ public class Board {
 
         // If the current player has no valid moves
         if ((currentPlayer == 1 && !hasValidMoveForPlayer1) || (currentPlayer == 2 && !hasValidMoveForPlayer2)) {
-            int winner = player1Seeds > player2Seeds ? 1 :
-                    player1Seeds < player2Seeds ? 2 : 0;
+            int winner = currentPlayer == 1 ? 2 : 1;
             captureRemainingSeeds(winner);
             return new GameStatus(true, winner, "No valid moves left");
         }
@@ -251,7 +249,6 @@ public class Board {
     }
 
     private void captureRemainingSeeds(int player) {
-
         if (player == 1) {
             for (int i = 0; i < TOTAL_HOLES; i++) {
                 player1Seeds += holes[i].size();
@@ -269,7 +266,6 @@ public class Board {
      * Evaluates the board state based on the heuristic. The heuristic evaluates the difference between Player 2's and
      * Player 1's seeds.
      * @return the heuristic value
-     * TODO: Implement a more sophisticated heuristic function
      */
     public int evaluateBoard() {
         if (isWinningState(1)) {
@@ -318,6 +314,8 @@ public class Board {
         // Display seed counts for both players
         System.out.println(EVEN_COLOR + "Player 1 Seeds: " + RESET + this.getPlayer1Seeds() + " | "
                 + ODD_COLOR + "Player 2 Seeds: " + RESET + this.getPlayer2Seeds());
+        System.out.println();
+        System.out.println("TURN: " + this.getTurns());
         System.out.println();
 
         // Print header for grid

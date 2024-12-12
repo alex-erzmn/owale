@@ -52,6 +52,7 @@ public class Game {
         if (isCurrentPlayerAI()) {
             currentPlayer.makeMove(board);
             board.switchPlayer();
+            board.setTurns(board.getTurns() + 1);
 
             // Print the board layout in the console
             board.printBoardLayout();
@@ -122,7 +123,8 @@ public class Game {
 
             // Update the game state on the JavaFX Application Thread
             board.switchPlayer();
-
+            board.setTurns(board.getTurns() + 1);
+            
             // Print the board layout in the console
             board.printBoardLayout();
 
