@@ -29,6 +29,12 @@ public class Board {
         this.currentPlayer = 1; // Player 1 starts the game
     }
 
+    /**
+     * Check if a hole has seeds of a specific color.
+     * @param holeIndex the index of the hole (0 to 15)
+     * @param seedColor the color of the seeds (BLUE or RED)
+     * @return
+     */
     public boolean hasSeeds(int holeIndex, SeedColor seedColor) {
         if (seedColor == SeedColor.BLUE) {
             return holes[holeIndex][0] > 0;
@@ -37,16 +43,38 @@ public class Board {
         }
     }
 
+    /**
+     * Get the total number of seeds in a hole.
+     * @param holeIndex the index of the hole (0 to 15)
+     * @return
+     */
     public int getSeedsInHole(int holeIndex) {
         return holes[holeIndex][0] + holes[holeIndex][1];
     }
 
+    /**
+     * Get the number of seeds in a hole only of a specific color.
+     * @param holeIndex the index of the hole (0 to 15)
+     * @param seedColor the color of the seeds (BLUE or RED)
+     * @return
+     */
     public int getSeedsInHole(int holeIndex, SeedColor seedColor) {
         if (seedColor == SeedColor.BLUE) {
             return holes[holeIndex][0];
         } else {
             return holes[holeIndex][1];
         }
+    }
+
+    /**
+     * Get the holes belonging to a player.
+     * @param player the player (1 or 2)
+     * @return an array of hole indices belonging to the player
+     */
+    public int[] getPlayerHoles(int player) {
+        return (player == 1)
+                ? new int[]{0, 2, 4, 6, 8, 10, 12, 14}  // 1, 3, 5, 7, 9, 11, 13, 15
+                : new int[]{1, 3, 5, 7, 9, 11, 13, 15}; // 2, 4, 6, 8, 10, 12, 14, 16
     }
 
     /**
@@ -127,22 +155,6 @@ public class Board {
         }
 
         return new GameStatus(false, -1, null); // Game is not over
-    }
-
-    public boolean isWinningState(int player) {
-        int opponent = (player == 1) ? 2 : 1;
-
-        // Check if the opponent has no legal moves left
-        for (int hole : getPlayerHoles(opponent)) {
-            for (SeedColor seedColor : SeedColor.values()) {
-                if (hasSeeds(hole, seedColor)) {
-                    return false; // Opponent still has a valid move
-                }
-            }
-        }
-
-        // Opponent cannot make a move, so the player wins
-        return true;
     }
 
     /**
@@ -276,10 +288,10 @@ public class Board {
      * @return the heuristic value
      */
     public int evaluateBoard() {
-        if (isWinningState(1)) {
+        if (checkGameStatus().getWinner() == 1) {
             return Integer.MAX_VALUE; // Winning state for Player 1
         }
-        if (isWinningState(2)) {
+        if (checkGameStatus().getWinner() == 2) {
             return Integer.MIN_VALUE; // Winning state for Player 2
         }
 
@@ -287,6 +299,14 @@ public class Board {
         return getPlayer1Seeds() - getPlayer2Seeds();
     }
 
+
+
+    /* ------------------------------------------ Methods for Simulation ------------------------------------------ */
+
+    /**
+     * Create a deep copy of the current board state.
+     * @return a deep copy of the board
+     */
     public Board copy() {
         Board copy = new Board();
         for (int i = 0; i < TOTAL_HOLES; i++) {
@@ -300,15 +320,99 @@ public class Board {
     }
 
     /**
-     * Get the holes belonging to a player.
-     * @param player the player (1 or 2)
-     * @return an array of hole indices belonging to the player
+     * Sow seeds for simulation purposes only. This method does not capture seeds but return the seeds theoretically captured.
+     * @param hole          the hole index
+     * @param seedColor     the seed color
+     * @return              the number of seeds theoretically captured
      */
-    public int[] getPlayerHoles(int player) {
-        return (player == 1)
-                ? new int[]{0, 2, 4, 6, 8, 10, 12, 14}  // 1, 3, 5, 7, 9, 11, 13, 15
-                : new int[]{1, 3, 5, 7, 9, 11, 13, 15}; // 2, 4, 6, 8, 10, 12, 14, 16
+    public int sowSeedsForSimulation(int hole, SeedColor seedColor) {
+        if (hole < 0 || hole >= TOTAL_HOLES || getSeedsInHole(hole) == 0 || !hasSeeds(hole, seedColor)) {
+            System.out.println(hole);
+            System.out.println(getSeedsInHole(hole));
+            System.out.println(hasSeeds(hole, seedColor));
+            throw new IllegalArgumentException("SIMULATION_ERROR: Invalid move! No " + seedColor + " seeds in hole " + (hole + 1) + ". Choose another color or hole.");
+        }
+
+        if (hole % 2 == 1 && currentPlayer == 1) {
+            throw new IllegalArgumentException("SIMULATION_ERROR: Player 1 cannot sow seeds from Player 2's holes! Choose another hole.");
+        } else if (hole % 2 == 0 && currentPlayer == 2) {
+            throw new IllegalArgumentException("SIMULATION_ERROR: Player 2 cannot sow seeds from Player 1's holes! Choose another hole.");
+        }
+
+        int seedsToSow = takeSeedsFromHole(hole, seedColor);
+
+        int lastHole = hole;
+        if (seedColor == SeedColor.BLUE) {
+            lastHole = sowBlueSeedsForSimulation(hole, seedsToSow);
+        } else if (seedColor == SeedColor.RED) {
+            lastHole = sowRedSeedsForSimulation(hole, seedsToSow);
+        }
+
+        return captureSeedsForSimulation(lastHole);
     }
+
+    /**
+     * Sows blue seeds in the holes starting from the given hole for simulation purposes only.
+     * @param startingHole the starting hole index
+     * @param seeds the number of seeds to sow
+     * @return the last hole where a seed was placed
+     */
+    private int sowBlueSeedsForSimulation(int startingHole, int seeds) {
+        int pos = startingHole;
+        while (seeds != 0) {
+            pos = (pos + 1) % TOTAL_HOLES;
+            if (pos == startingHole) {
+                continue;  // Skip the hole from which the seeds were taken
+            }
+            seeds--;
+        }
+        return pos; // Return the last hole where a seed was placed
+    }
+
+    /**
+     * Sows red seeds in the opposite holes starting from the given hole for simulation purposes only.
+     * @param startingHole the starting hole index
+     * @param seeds the number of seeds to sow
+     * @return the last hole where a seed was placed
+     */
+    private int sowRedSeedsForSimulation(int startingHole, int seeds) {
+        int oppositeHole = (startingHole + 1) % TOTAL_HOLES; // Track the current hole
+        while (seeds != 0) {
+            seeds--;
+            oppositeHole = (oppositeHole + 2) % TOTAL_HOLES;
+        }
+        return (oppositeHole - 2 + TOTAL_HOLES) % TOTAL_HOLES;
+    }
+
+    /**
+     * Capture seeds for simulation purposes only. This method does not modify the board state but returns the seeds
+     * @param lastHole the last hole where a seed was placed
+     * @return the number of seeds theoretically captured
+     */
+    private int captureSeedsForSimulation(int lastHole) {
+        int capturedSeeds = 0;
+
+        // Move counter-clockwise to capture seeds
+        while (true) {
+            int seedsInHole = holes[lastHole][0] + holes[lastHole][1];
+
+            // Capture if the hole has 2 or 3 seeds
+            if (seedsInHole == 2 || seedsInHole == 3) {
+                capturedSeeds += seedsInHole;
+            } else {
+                break;  // Stop capturing if the current hole doesn't have 2 or 3 seeds
+            }
+
+            // Move to the previous hole counter-clockwise
+            lastHole = (lastHole - 1 + TOTAL_HOLES) % TOTAL_HOLES;
+        }
+
+        return capturedSeeds;
+    }
+
+
+
+    /* --------------------------------------- Methods for Console Printing --------------------------------------- */
 
     /**
      * Print the board layout in the console with a table-like grid and better spacing.

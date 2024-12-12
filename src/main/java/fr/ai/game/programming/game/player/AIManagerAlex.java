@@ -4,40 +4,35 @@ import fr.ai.game.programming.game.elements.Board;
 import fr.ai.game.programming.game.elements.SeedColor;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
-import static fr.ai.game.programming.game.elements.Board.TOTAL_HOLES;
 
 /**
  * AI manager for the Awale game. Implements the Minimax algorithm with Alpha-Beta pruning and random move selection.
  */
 public class AIManagerAlex implements AIManager {
-    private final Board board;
     private static final int INITIAL_DEPTH = 5; // Initial depth for Minimax algorithm
     private int currentDepth = INITIAL_DEPTH; // Initial depth for Minimax algorithm
     private static final int MAX_DEPTH = 20; // Maximum depth for Minimax algorithm
 
-    public AIManagerAlex(Board board) {
-        this.board = board;
-    }
+    public AIManagerAlex() {}
 
-    public Move findMove() {
-        return findBestMove();
+    public Move findMove(Board board) {
+        return findBestMove(board);
     }
 
     /**
      * Find the best move for the player using the Minimax algorithm with Alpha-Beta pruning.
      * @return the best move which includes seed color and number of seeds
      */
-    private Move findBestMove() {
+    private Move findBestMove(Board board) {
         int player = board.getCurrentPlayer();
         // Define initial alpha and beta values
         int alpha = Integer.MIN_VALUE;
         int beta = Integer.MAX_VALUE;
 
         // Define a high-level utility variable to track the best move
-        Move bestMove = findRandomMove(); // This is only workaround because there is an error which causes sometimes to not find a solution with minimax
+        Move bestMove = findRandomMove(board); // This is only workaround because there is an error which causes sometimes to not find a solution with minimax
         int bestValue = (player == 1) ? Integer.MIN_VALUE : Integer.MAX_VALUE;
 
         // Generate a sorted list of all possible moves for the player
@@ -111,7 +106,7 @@ public class AIManagerAlex implements AIManager {
                         childBoard.switchPlayer();
 
                         // Check if this move is a winning move
-                        if (childBoard.isWinningState(1)) {
+                        if (childBoard.checkGameStatus().getWinner() == 1) {
                             return Integer.MAX_VALUE; // Immediate win for player 1
                         }
 
@@ -138,7 +133,7 @@ public class AIManagerAlex implements AIManager {
                         childBoard.switchPlayer();
 
                         // Check if this move is a winning move
-                        if (childBoard.isWinningState(2)) {
+                        if (childBoard.checkGameStatus().getWinner() == 2) {
                             return Integer.MIN_VALUE; // Immediate win for player 2
                         }
 
@@ -161,7 +156,7 @@ public class AIManagerAlex implements AIManager {
      * Find a random move for the player.
      * @return a Move with the chosen hole and seed color
      */
-    private Move findRandomMove() {
+    private Move findRandomMove(Board board) {
         int player = board.getCurrentPlayer();
 
         // Get the range of holes for the current player
@@ -199,13 +194,13 @@ public class AIManagerAlex implements AIManager {
         if( amountPossibleMoves > 8) {
             currentDepth = INITIAL_DEPTH;
         } else if (amountPossibleMoves > 4) {
-            currentDepth = INITIAL_DEPTH + 5;
+            currentDepth = INITIAL_DEPTH + 4;
         } else if (amountPossibleMoves > 3) {
-            currentDepth = INITIAL_DEPTH + 10;
+            currentDepth = INITIAL_DEPTH + 5;
         } else if (amountPossibleMoves > 2) {
-            currentDepth = INITIAL_DEPTH + 15;
+            currentDepth = INITIAL_DEPTH + 6;
         } else {
-            currentDepth = INITIAL_DEPTH + 20;
+            currentDepth = INITIAL_DEPTH + 7;
         }
     }
 
@@ -230,67 +225,22 @@ public class AIManagerAlex implements AIManager {
         // Sort the moves based on the specified criteria
         possibleMoves.sort((move1, move2) -> {
             // Evaluate the "quality" of the moves
-            int quality1 = evaluateMoveQuality(move1, player);
-            int quality2 = evaluateMoveQuality(move2, player);
+            Board simulationBoard = board.copy();
+            int capturedSeeds1 = simulationBoard.sowSeedsForSimulation(move1.hole(), move1.color());
+            int capturedSeeds2 = simulationBoard.sowSeedsForSimulation(move2.hole(), move2.color());
 
             // First sort by move quality (higher is better)
-            int qualityComparison = Integer.compare(quality2, quality1);
-            if (qualityComparison != 0) {
-                return qualityComparison;
+            if (capturedSeeds1 != capturedSeeds2) {
+                return Integer.compare(capturedSeeds2, capturedSeeds1); // Higher captured seeds come first
             }
 
             // If quality is equal, sort by seed count in the starting hole (descending)
-            int seeds1 = board.getSeedsInHole(move1.hole(), move1.color());
+            int seedsInHole1 = board.getSeedsInHole(move1.hole(), move1.color());
+            int seedsInHole2 = board.getSeedsInHole(move2.hole(), move2.color());
 
-            int seeds2 = board.getSeedsInHole(move2.hole(), move2.color());
-
-            return Long.compare(seeds1, seeds2);
+            return Integer.compare(seedsInHole1, seedsInHole2);
         });
 
         return possibleMoves;
-    }
-
-    // Evaluate the quality of a move
-    private int evaluateMoveQuality(Move move, int player) {
-        // Get the number of seeds in the starting hole
-        long seedCount = board.getSeedsInHole(move.hole(), move.color());
-
-        // Determine the end position of the sowing
-        int endHole = calculateEndHole(move.hole(), (int) seedCount, move.color(), player);
-
-        // Check the seed count in the end hole
-        int endHoleSeedCount = board.getSeedsInHole(endHole);
-
-        // Assign a score: prioritize moves that end in a hole with 1 or 2 seeds
-        if (endHoleSeedCount == 1 || endHoleSeedCount == 2) {
-            return 1000; // High priority for these moves
-        }
-
-        return 0; // Default priority for other moves
-    }
-
-    // Calculate the end hole of a sowing move
-    private int calculateEndHole(int startHole, int seedCount, SeedColor color, int player) {
-        int currentHole = startHole;
-
-        for (int i = 0; i < seedCount; i++) {
-            if (currentHole == startHole) {
-                // Skip the starting hole
-                currentHole++;
-            }
-
-            currentHole++;
-
-            // Skip opponent's store if sowing the opponent's seeds
-            int finalCurrentHole = currentHole;
-            if (color == SeedColor.RED && Arrays.stream(board.getPlayerHoles(player)).anyMatch(hole -> hole == finalCurrentHole)) {
-                currentHole++;
-            }
-
-            // Wrap around the board
-            currentHole %= TOTAL_HOLES;
-        }
-
-        return currentHole;
     }
 }

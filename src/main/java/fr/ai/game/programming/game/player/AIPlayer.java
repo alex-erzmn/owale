@@ -19,7 +19,7 @@ public class AIPlayer implements Player {
         // Start timing
         long startTime = System.nanoTime();
 
-        Move aiMove = aiManager.findMove();
+        Move aiMove = aiManager.findMove(board);
 
         // End timing
         long endTime = System.nanoTime();

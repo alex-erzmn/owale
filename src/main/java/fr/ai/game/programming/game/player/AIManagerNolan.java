@@ -10,24 +10,22 @@ import java.util.List;
  * AI manager for the Awale game. Implements the Minimax algorithm with Alpha-Beta pruning and random move selection.
  */
 public class AIManagerNolan implements AIManager {
-    private final Board board;
     private static final int INITIAL_DEPTH = 5; // Initial depth for Minimax algorithm
     private int currentDepth = INITIAL_DEPTH; // Initial depth for Minimax algorithm
     private static final int MAX_DEPTH = 20; // Maximum depth for Minimax algorithm
 
-    public AIManagerNolan(Board board) {
-        this.board = board;
+    public AIManagerNolan() {
     }
 
-    public Move findMove() {
-        return findBestMove();
+    public Move findMove(Board board) {
+        return findRandomMove(board);
     }
 
     /**
      * Find a random move for the player.
      * @return a Move with the chosen hole and seed color
      */
-    private Move findRandomMove() {
+    private Move findRandomMove(Board board) {
         int player = board.getCurrentPlayer();
 
         // Get the range of holes for the current player
@@ -60,14 +58,14 @@ public class AIManagerNolan implements AIManager {
      * Find the best move for the player using the Minimax algorithm with Alpha-Beta pruning.
      * @return the best move which includes seed color and number of seeds
      */
-    private Move findBestMove() {
+    private Move findBestMove(Board board) {
         int player = board.getCurrentPlayer();
         // Define initial alpha and beta values
         int alpha = Integer.MIN_VALUE;
         int beta = Integer.MAX_VALUE;
 
         // Define a high-level utility variable to track the best move
-        Move bestMove = findRandomMove(); // This is only workaround because there is an error which causes sometimes to not find a solution with minimax
+        Move bestMove = findRandomMove(board); // This is only workaround because there is an error which causes sometimes to not find a solution with minimax
         int bestValue = (player == 1) ? Integer.MIN_VALUE : Integer.MAX_VALUE;
 
         // Generate a sorted list of all possible moves for the player
@@ -141,7 +139,7 @@ public class AIManagerNolan implements AIManager {
                     childBoard.switchPlayer();
 
                     // Check if this move is a winning move
-                    if (childBoard.isWinningState(1)) {
+                    if (childBoard.checkGameStatus().getWinner() == 1) {
                         return Integer.MAX_VALUE; // Immediate win for player 1
                     }
 
@@ -168,7 +166,7 @@ public class AIManagerNolan implements AIManager {
                     childBoard.switchPlayer();
 
                     // Check if this move is a winning move
-                    if (childBoard.isWinningState(2)) {
+                    if (childBoard.checkGameStatus().getWinner() == 2) {
                         return Integer.MIN_VALUE; // Immediate win for player 2
                     }
 
