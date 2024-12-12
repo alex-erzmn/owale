@@ -1,7 +1,7 @@
 package fr.ai.game.programming.game;
 
 import fr.ai.game.programming.game.elements.Board;
-import fr.ai.game.programming.game.elements.Seed;
+import fr.ai.game.programming.game.elements.SeedColor;
 import fr.ai.game.programming.game.player.*;
 import lombok.Getter;
 
@@ -98,7 +98,7 @@ public class Game {
 
             // Extract hole index and color
             int holeIndex = Integer.parseInt(matcher.group(1));
-            Seed.Color chosenColor = parseColor(matcher.group(2));
+            SeedColor chosenColor = parseColor(matcher.group(2));
 
             // Validate hole index
             if (holeIndex < 1 || holeIndex > TOTAL_HOLES) {
@@ -143,12 +143,12 @@ public class Game {
         }
     }
 
-    private Seed.Color parseColor(String colorCode) {
+    private SeedColor parseColor(String colorCode) {
         switch (colorCode.toUpperCase()) {
             case "B":
-                return Seed.Color.BLUE;
+                return SeedColor.BLUE;
             case "R":
-                return Seed.Color.RED;
+                return SeedColor.RED;
             default:
                 throw new IllegalArgumentException("Invalid color code: " + colorCode);
         }

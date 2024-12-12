@@ -4,10 +4,6 @@ import fr.ai.game.programming.game.GameStatus;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-
 @Getter
 public class Board {
 
@@ -16,32 +12,41 @@ public class Board {
     @Setter
     private int turns = 0;
 
-    private final List<Seed>[] holes;
+    private final int[][] holes = new int[TOTAL_HOLES][2]; // 16 holes, 2 seed types (blue, red)
     private int player1Seeds;
     private int player2Seeds;
     private int currentPlayer;
 
     public Board() {
-        holes = new List[TOTAL_HOLES];
+        // Initialize each hole with the initial number of seeds per color
         for (int i = 0; i < TOTAL_HOLES; i++) {
-            holes[i] = new ArrayList<>();
-            for (int j = 0; j < INITIAL_SEEDS_PER_COLOR; j++) {
-                holes[i].add(new Seed(Seed.Color.BLUE));
-                holes[i].add(new Seed(Seed.Color.RED));
-            }
+            holes[i][0] = INITIAL_SEEDS_PER_COLOR; // Blue seeds
+            holes[i][1] = INITIAL_SEEDS_PER_COLOR; // Red seeds
         }
+
         this.player1Seeds = 0;
         this.player2Seeds = 0;
-
         this.currentPlayer = 1; // Player 1 starts the game
     }
 
-    public boolean hasSeeds(int hole, Seed.Color seedColor) {
-        return holes[hole].stream().anyMatch(seed -> seed.getColor() == seedColor);
+    public boolean hasSeeds(int holeIndex, SeedColor seedColor) {
+        if (seedColor == SeedColor.BLUE) {
+            return holes[holeIndex][0] > 0;
+        } else {
+            return holes[holeIndex][1] > 0;
+        }
     }
 
-    public List<Seed> getSeedsInHole(int index) {
-        return holes[index];
+    public int getSeedsInHole(int holeIndex) {
+        return holes[holeIndex][0] + holes[holeIndex][1];
+    }
+
+    public int getSeedsInHole(int holeIndex, SeedColor seedColor) {
+        if (seedColor == SeedColor.BLUE) {
+            return holes[holeIndex][0];
+        } else {
+            return holes[holeIndex][1];
+        }
     }
 
     /**
@@ -62,8 +67,10 @@ public class Board {
     public GameStatus checkGameStatus() {
         int totalSeedsOnBoard = 0;
 
-        for (List<Seed> hole : holes) {
-            totalSeedsOnBoard += hole.size();
+        for (int[] hole : holes) {
+            for (int seeds : hole) {
+                totalSeedsOnBoard += seeds;
+            }
         }
 
         // Check if Player 1 has won
@@ -98,7 +105,7 @@ public class Board {
 
         // Check if player 1 has a valid move
         for (int i : player1Holes) {
-            if (!holes[i].isEmpty()) {
+            if (getSeedsInHole(i) != 0) {
                 hasValidMoveForPlayer1 = true;
                 break;  // No need to check further if one valid move is found
             }
@@ -106,7 +113,7 @@ public class Board {
 
         // Check if player 2 has a valid move
         for (int i : player2Holes) {
-            if (!holes[i].isEmpty()) {
+            if (getSeedsInHole(i) != 0) {
                 hasValidMoveForPlayer2 = true;
                 break;  // No need to check further if one valid move is found
             }
@@ -127,8 +134,8 @@ public class Board {
 
         // Check if the opponent has no legal moves left
         for (int hole : getPlayerHoles(opponent)) {
-            for (Seed.Color color : Seed.Color.values()) {
-                if (hasSeeds(hole, color)) {
+            for (SeedColor seedColor : SeedColor.values()) {
+                if (hasSeeds(hole, seedColor)) {
                     return false; // Opponent still has a valid move
                 }
             }
@@ -141,8 +148,8 @@ public class Board {
     /**
      * Sows seeds from the given hole in the specified color.
      */
-    public void sowSeeds(int hole, Seed.Color seedColor) {
-        if (hole < 0 || hole >= TOTAL_HOLES || holes[hole].isEmpty() || !hasSeeds(hole, seedColor)) {
+    public void sowSeeds(int hole, SeedColor seedColor) {
+        if (hole < 0 || hole >= TOTAL_HOLES || getSeedsInHole(hole) ==0 || !hasSeeds(hole, seedColor)) {
             throw new IllegalArgumentException("Invalid move! No " + seedColor + " seeds in hole " + (hole + 1) + ". Choose another color or hole.");
         }
 
@@ -152,31 +159,28 @@ public class Board {
             throw new IllegalArgumentException("Player 2 cannot sow seeds from Player 1's holes! Choose another hole.");
         }
 
-        List<Seed> seedsToSow = takeSeedsFromHole(hole, seedColor);
+        int seedsToSow = takeSeedsFromHole(hole, seedColor);
 
         int lastHole = hole;
-        if (seedColor == Seed.Color.BLUE) {
+        if (seedColor == SeedColor.BLUE) {
             lastHole = sowBlueSeeds(hole, seedsToSow);
-        } else if (seedColor == Seed.Color.RED) {
+        } else if (seedColor == SeedColor.RED) {
             lastHole = sowRedSeeds(hole, seedsToSow);
         }
 
         captureSeeds(currentPlayer, lastHole);
     }
 
-    private List<Seed> takeSeedsFromHole(int index, Seed.Color seedColor) {
-        List<Seed> seedsToTake = new ArrayList<>();
+    private int takeSeedsFromHole(int index, SeedColor seedColor) {
+        int seedsToTake = 0;
 
-        Iterator<Seed> iterator = holes[index].iterator();
-
-        while (iterator.hasNext()) {
-            Seed seed = iterator.next();
-            if (seed.getColor() == seedColor) {
-                seedsToTake.add(seed);
-                iterator.remove();
-            }
+        if (seedColor == SeedColor.BLUE) {
+            seedsToTake = holes[index][0];
+            holes[index][0] = 0;
+        } else {
+            seedsToTake = holes[index][1];
+            holes[index][1] = 0;
         }
-
         return seedsToTake;
     }
 
@@ -186,15 +190,16 @@ public class Board {
      * @param seeds
      * @return the last hole where a seed was placed
      */
-    private int sowBlueSeeds(int startingHole, List<Seed> seeds) {
+    private int sowBlueSeeds(int startingHole, int seeds) {
         int pos = startingHole;
-        while (!seeds.isEmpty()) {
+        while (seeds != 0) {
             pos = (pos + 1) % TOTAL_HOLES;
             if (pos == startingHole) {
                 continue;  // Skip the hole from which the seeds were taken
             }
             // Add one blue seed to the next hole
-            holes[pos].add(seeds.remove(0));
+            holes[pos][0]++;
+            seeds--;
         }
         return pos; // Return the last hole where a seed was placed
     }
@@ -205,10 +210,11 @@ public class Board {
      * @param seeds
      * @return the last hole where a seed was placed
      */
-    private int sowRedSeeds(int startingHole, List<Seed> seeds) {
+    private int sowRedSeeds(int startingHole, int seeds) {
         int oppositeHole = (startingHole + 1) % TOTAL_HOLES; // Track the current hole
-        while (!seeds.isEmpty()) {
-            holes[oppositeHole].add(seeds.remove(0));
+        while (seeds != 0) {
+            holes[oppositeHole][1]++;  // Add one red seed to the opposite hole
+            seeds--;
             oppositeHole = (oppositeHole + 2) % TOTAL_HOLES;
         }
         return (oppositeHole - 2 + TOTAL_HOLES) % TOTAL_HOLES;
@@ -225,13 +231,13 @@ public class Board {
 
         // Move counter-clockwise to capture seeds
         while (true) {
-            List<Seed> seedsInHole = holes[lastHole];
-            int totalSeeds = seedsInHole.size();  // Count total seeds in the hole (both colors)
+            int seedsInHole = holes[lastHole][0] + holes[lastHole][1];
 
             // Capture if the hole has 2 or 3 seeds
-            if (totalSeeds == 2 || totalSeeds == 3) {
-                capturedSeeds += totalSeeds;
-                seedsInHole.clear();  // Remove seeds after capturing
+            if (seedsInHole == 2 || seedsInHole == 3) {
+                capturedSeeds += seedsInHole;
+                holes[lastHole][0] = 0;
+                holes[lastHole][1] = 0;
             } else {
                 break;  // Stop capturing if the current hole doesn't have 2 or 3 seeds
             }
@@ -251,13 +257,15 @@ public class Board {
     private void captureRemainingSeeds(int player) {
         if (player == 1) {
             for (int i = 0; i < TOTAL_HOLES; i++) {
-                player1Seeds += holes[i].size();
-                holes[i].clear();
+                player1Seeds += holes[i][0] + holes[i][1];
+                holes[i][0] = 0;
+                holes[i][1] = 0;
             }
         } else {
             for (int i = 0; i < TOTAL_HOLES; i++) {
-                player2Seeds += holes[i].size();
-                holes[i].clear();
+                player2Seeds += holes[i][0] + holes[i][1];
+                holes[i][0] = 0;
+                holes[i][1] = 0;
             }
         }
     }
@@ -282,8 +290,8 @@ public class Board {
     public Board copy() {
         Board copy = new Board();
         for (int i = 0; i < TOTAL_HOLES; i++) {
-            copy.holes[i].clear();
-            copy.holes[i].addAll(holes[i]);
+            copy.holes[i][0] = holes[i][0];
+            copy.holes[i][1] = holes[i][1];
         }
         copy.player1Seeds = player1Seeds;
         copy.player2Seeds = player2Seeds;
@@ -322,7 +330,7 @@ public class Board {
         printRowSeparator();
         System.out.print("|");
         for (int i = 0; i < 8; i++) {
-            String formattedHole = formatHoleWithColor(i, holeSummary(holes[i]));
+            String formattedHole = formatHoleWithColor(i, holeSummary(i));
             System.out.print("    " + centerText(formattedHole, 15) + "    |");
         }
         System.out.println();
@@ -333,7 +341,7 @@ public class Board {
         // Print bottom row (holes 15 to 8 in reverse)
         System.out.print("|");
         for (int i = 15; i >= 8; i--) {
-            String formattedHole = formatHoleWithColor(i, holeSummary(holes[i]));
+            String formattedHole = formatHoleWithColor(i, holeSummary(i));
             System.out.print("    " + centerText(formattedHole, 15) + "    |");
         }
         System.out.println();
@@ -344,9 +352,9 @@ public class Board {
     /**
      * Generates a summary of the seeds in a hole with colored formatting.
      */
-    private String holeSummary(List<Seed> seeds) {
-        int blueCount = (int) seeds.stream().filter(seed -> seed.getColor() == Seed.Color.BLUE).count();
-        int redCount = (int) seeds.stream().filter(seed -> seed.getColor() == Seed.Color.RED).count();
+    private String holeSummary(int holeIndex) {
+        int blueCount = holes[holeIndex][0];
+        int redCount = holes[holeIndex][1];
 
         // Define ANSI colors
         final String RESET = "\u001B[0m";
