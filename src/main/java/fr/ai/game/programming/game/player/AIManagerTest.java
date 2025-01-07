@@ -8,14 +8,15 @@ import java.util.List;
 
 
 /**
+ * @Yassin here you can try to improve the AIManager implementation
  * AI manager for the Awale game. Implements the Minimax algorithm with Alpha-Beta pruning and random move selection.
  */
-public class AIManagerNew implements AIManager {
+public class AIManagerTest implements AIManager {
     private static final int INITIAL_DEPTH = 5; // Initial depth for Minimax algorithm
     private int currentDepth = INITIAL_DEPTH; // Initial depth for Minimax algorithm
     private static final int MAX_DEPTH = 20; // Maximum depth for Minimax algorithm
 
-    public AIManagerNew() {}
+    public AIManagerTest() {}
 
     public Move findMove(Board board) {
         return findBestMove(board);

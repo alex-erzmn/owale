@@ -18,7 +18,7 @@ public class AIManagerOld implements AIManager {
     }
 
     public Move findMove(Board board) {
-        return findRandomMove(board);
+        return findBestMove(board);
     }
 
     /**

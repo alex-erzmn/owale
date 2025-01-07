@@ -29,7 +29,7 @@ public class GameFactory {
             case AI_VS_AI_LOCAL -> {
                 Board board = new Board();
                 AIPlayer player1 = new AIPlayer(new AIManagerNew());
-                AIPlayer player2 = new AIPlayer(new AIManagerNew());
+                AIPlayer player2 = new AIPlayer(new AIManagerOld());
                 return new Game(board, player1, player2);
             }
             default -> throw new IllegalArgumentException("Unsupported game mode: " + gameMode);
