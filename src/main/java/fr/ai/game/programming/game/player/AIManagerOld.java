@@ -6,19 +6,52 @@ import fr.ai.game.programming.game.elements.SeedColor;
 import java.util.ArrayList;
 import java.util.List;
 
-
 /**
  * AI manager for the Awale game. Implements the Minimax algorithm with Alpha-Beta pruning and random move selection.
  */
-public class AIManagerAlex implements AIManager {
+public class AIManagerOld implements AIManager {
     private static final int INITIAL_DEPTH = 5; // Initial depth for Minimax algorithm
     private int currentDepth = INITIAL_DEPTH; // Initial depth for Minimax algorithm
     private static final int MAX_DEPTH = 20; // Maximum depth for Minimax algorithm
 
-    public AIManagerAlex() {}
+    public AIManagerOld() {
+    }
 
     public Move findMove(Board board) {
-        return findBestMove(board);
+        return findRandomMove(board);
+    }
+
+    /**
+     * Find a random move for the player.
+     * @return a Move with the chosen hole and seed color
+     */
+    private Move findRandomMove(Board board) {
+        int player = board.getCurrentPlayer();
+
+        // Get the range of holes for the current player
+        int[] playerHoles = board.getPlayerHoles(player);
+
+        // Continue searching until a valid hole and color are selected
+        while (true) {
+            // Pick a random hole index for the player
+            int randomIndex = (int) (Math.random() * playerHoles.length);
+            int randomHole = playerHoles[randomIndex];
+
+            // Check the seed counts for each color in the selected hole
+            int blueCount = board.getSeedsInHole(randomHole, SeedColor.BLUE);
+            int redCount = board.getSeedsInHole(randomHole, SeedColor.RED);
+
+            // Randomly decide which color to choose if both are available
+            if (blueCount > 0 && redCount > 0) {
+                SeedColor seedColor = Math.random() < 0.5 ? SeedColor.BLUE : SeedColor.RED;
+                return new Move(randomHole, seedColor);
+            } else if (blueCount > 0) {
+                return new Move(randomHole, SeedColor.BLUE);
+            } else if (redCount > 0) {
+                return new Move(randomHole, SeedColor.RED);
+            }
+            // If no seeds are available in this hole, continue to another random selection
+        }
     }
 
     /**
@@ -99,92 +132,58 @@ public class AIManagerAlex implements AIManager {
             int maxEval = Integer.MIN_VALUE;
             List<Move> possibleMoves = getAllPossibleMoves(2, simulatedBoard);
             for (Move move : possibleMoves) {
-                    if (simulatedBoard.hasSeeds(move.hole(), move.color())) {
-                        // Simulate the move
-                        Board childBoard = simulatedBoard.copy();
-                        childBoard.sowSeeds(move.hole(), move.color());
-                        childBoard.switchPlayer();
+                if (simulatedBoard.hasSeeds(move.hole(), move.color())) {
+                    // Simulate the move
+                    Board childBoard = simulatedBoard.copy();
+                    childBoard.sowSeeds(move.hole(), move.color());
+                    childBoard.switchPlayer();
 
-                        // Check if this move is a winning move
-                        if (childBoard.checkGameStatus().getWinner() == 1) {
-                            return Integer.MAX_VALUE; // Immediate win for player 1
-                        }
-
-                        // Recur with the next player (minimizing)
-                        int eval = minimax(childBoard, depth - 1, alpha, beta, false);
-                        maxEval = Math.max(maxEval, eval);
-
-                        // Update alpha and prune if necessary
-                        alpha = Math.max(alpha, eval);
-                        if (alpha >= beta) {
-                            break;
-                        }
+                    // Check if this move is a winning move
+                    if (childBoard.checkGameStatus().getWinner() == 1) {
+                        return Integer.MAX_VALUE; // Immediate win for player 1
                     }
+
+                    // Recur with the next player (minimizing)
+                    int eval = minimax(childBoard, depth - 1, alpha, beta, false);
+                    maxEval = Math.max(maxEval, eval);
+
+                    // Update alpha and prune if necessary
+                    alpha = Math.max(alpha, eval);
+                    if (alpha >= beta) {
+                        break;
+                    }
+                }
             }
             return maxEval;
         } else {
             int minEval = Integer.MAX_VALUE;
             List<Move> possibleMoves = getAllPossibleMoves(1, simulatedBoard);
-                for (Move move : possibleMoves) {
-                    if (simulatedBoard.hasSeeds(move.hole(), move.color())) {
-                        // Simulate the move
-                        Board childBoard = simulatedBoard.copy();
-                        childBoard.sowSeeds(move.hole(), move.color());
-                        childBoard.switchPlayer();
+            for (Move move : possibleMoves) {
+                if (simulatedBoard.hasSeeds(move.hole(), move.color())) {
+                    // Simulate the move
+                    Board childBoard = simulatedBoard.copy();
+                    childBoard.sowSeeds(move.hole(), move.color());
+                    childBoard.switchPlayer();
 
-                        // Check if this move is a winning move
-                        if (childBoard.checkGameStatus().getWinner() == 2) {
-                            return Integer.MIN_VALUE; // Immediate win for player 2
-                        }
-
-                        // Recur with the next player (maximizing)
-                        int eval = minimax(childBoard, depth - 1, alpha, beta, true);
-                        minEval = Math.min(minEval, eval);
-
-                        // Update beta and prune if necessary
-                        beta = Math.min(beta, eval);
-                        if (alpha >= beta) {
-                            break;
-                        }
+                    // Check if this move is a winning move
+                    if (childBoard.checkGameStatus().getWinner() == 2) {
+                        return Integer.MIN_VALUE; // Immediate win for player 2
                     }
+
+                    // Recur with the next player (maximizing)
+                    int eval = minimax(childBoard, depth - 1, alpha, beta, true);
+                    minEval = Math.min(minEval, eval);
+
+                    // Update beta and prune if necessary
+                    beta = Math.min(beta, eval);
+                    if (alpha >= beta) {
+                        break;
+                    }
+                }
             }
             return minEval;
         }
     }
-
-    /**
-     * Find a random move for the player.
-     * @return a Move with the chosen hole and seed color
-     */
-    private Move findRandomMove(Board board) {
-        int player = board.getCurrentPlayer();
-
-        // Get the range of holes for the current player
-        int[] playerHoles = board.getPlayerHoles(player);
-
-        // Continue searching until a valid hole and color are selected
-        while (true) {
-            // Pick a random hole index for the player
-            int randomIndex = (int) (Math.random() * playerHoles.length);
-            int randomHole = playerHoles[randomIndex];
-
-            // Check the seed counts for each color in the selected hole
-            int blueCount = board.getSeedsInHole(randomHole, SeedColor.BLUE);
-            int redCount = board.getSeedsInHole(randomHole, SeedColor.RED);
-
-            // Randomly decide which color to choose if both are available
-            if (blueCount > 0 && redCount > 0) {
-                SeedColor seedColor = Math.random() < 0.5 ? SeedColor.BLUE : SeedColor.RED;
-                return new Move(randomHole, seedColor);
-            } else if (blueCount > 0) {
-                return new Move(randomHole, SeedColor.BLUE);
-            } else if (redCount > 0) {
-                return new Move(randomHole, SeedColor.RED);
-            }
-            // If no seeds are available in this hole, continue to another random selection
-        }
-    }
-
 
     /**
      * Optimize the depth of the Minimax algorithm based on the current game state.
@@ -194,13 +193,11 @@ public class AIManagerAlex implements AIManager {
         if( amountPossibleMoves > 8) {
             currentDepth = INITIAL_DEPTH;
         } else if (amountPossibleMoves > 4) {
-            currentDepth = INITIAL_DEPTH + 4;
-        } else if (amountPossibleMoves > 3) {
-            currentDepth = INITIAL_DEPTH + 5;
+            currentDepth = INITIAL_DEPTH + 1;
         } else if (amountPossibleMoves > 2) {
-            currentDepth = INITIAL_DEPTH + 6;
+            currentDepth = INITIAL_DEPTH + 3;
         } else {
-            currentDepth = INITIAL_DEPTH + 7;
+            currentDepth = INITIAL_DEPTH + 4;
         }
     }
 
@@ -222,23 +219,16 @@ public class AIManagerAlex implements AIManager {
             }
         }
 
-        // Sort the moves based on the specified criteria
+        // Sort the moves based on the number of seeds in the specified color
         possibleMoves.sort((move1, move2) -> {
-            // Evaluate the "quality" of the moves
-            Board simulationBoard = board.copy();
-            int capturedSeeds1 = simulationBoard.sowSeedsForSimulation(move1.hole(), move1.color());
-            int capturedSeeds2 = simulationBoard.sowSeedsForSimulation(move2.hole(), move2.color());
+            // Count seeds of the specific color for move1
+            long seeds1 = board.getSeedsInHole(move1.hole(), move1.color());
 
-            // First sort by move quality (higher is better)
-            if (capturedSeeds1 != capturedSeeds2) {
-                return Integer.compare(capturedSeeds2, capturedSeeds1); // Higher captured seeds come first
-            }
+            // Count seeds of the specific color for move2
+            long seeds2 = board.getSeedsInHole(move2.hole(), move2.color());
 
-            // If quality is equal, sort by seed count in the starting hole (descending)
-            int seedsInHole1 = board.getSeedsInHole(move1.hole(), move1.color());
-            int seedsInHole2 = board.getSeedsInHole(move2.hole(), move2.color());
-
-            return Integer.compare(seedsInHole1, seedsInHole2);
+            // Sort in descending order of the seed count
+            return Long.compare(seeds2, seeds1);
         });
 
         return possibleMoves;
