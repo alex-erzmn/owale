@@ -3,6 +3,7 @@ package fr.ai.game.programming.game.player;
 import fr.ai.game.programming.game.elements.Board;
 import fr.ai.game.programming.game.elements.SeedColor;
 
+import javax.naming.TimeLimitExceededException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -12,8 +13,9 @@ import java.util.List;
  */
 public class AIManagerNew implements AIManager {
     private static final int INITIAL_DEPTH = 5; // Initial depth for Minimax algorithm
+    private static final int TIME_LIMIT_MS = 2000; // Time limit for the Minimax algorithm
     private int currentDepth = INITIAL_DEPTH; // Initial depth for Minimax algorithm
-    private static final int MAX_DEPTH = 20; // Maximum depth for Minimax algorithm
+    private long startTime;
 
     public AIManagerNew() {}
 
@@ -26,6 +28,9 @@ public class AIManagerNew implements AIManager {
      * @return the best move which includes seed color and number of seeds
      */
     private Move findBestMove(Board board) {
+        // Start timing
+        startTime = System.nanoTime();
+
         int player = board.getCurrentPlayer();
         // Define initial alpha and beta values
         int alpha = Integer.MIN_VALUE;
@@ -38,12 +43,8 @@ public class AIManagerNew implements AIManager {
         // Generate a sorted list of all possible moves for the player
         List<Move> possibleMoves = getAllPossibleMoves(player, board);
 
-        for (Move move : possibleMoves) {
-            System.out.println(move);
-        }
-
         optimizeDepth(possibleMoves.size());
-        System.out.println(currentDepth);
+        System.out.println("Current Depth: " + currentDepth);
 
         // Iterate through all holes to find the best move
         for (Move move : possibleMoves) {
@@ -52,8 +53,16 @@ public class AIManagerNew implements AIManager {
                     Board simulatedBoard = board.copy();
                     simulatedBoard.sowSeeds(move.hole(), move.color()); // Perform the move on the simulated board
 
-                    // Calculate the utility of the move using the minimax algorithm
-                    int moveValue = minimax(simulatedBoard, currentDepth, alpha, beta, player == 2);
+                    int moveValue;
+                    try {
+                        // Calculate the utility of the move using the minimax algorithm
+                        moveValue = minimax(simulatedBoard, currentDepth, alpha, beta, player == 2);
+
+                    } catch (TimeLimitExceededException e) {
+                        System.out.println("Time limit exceeded. Returning the best move found so far.");
+                        System.out.println("AI move computation time: " + TIME_LIMIT_MS + " ms");
+                        return bestMove;
+                    }
 
                     // Update the best move if the current move has a better value
                     if ((player == 1 && moveValue > bestValue) || (player == 2 && moveValue < bestValue)) {
@@ -75,6 +84,13 @@ public class AIManagerNew implements AIManager {
                 }
         }
 
+        // End timing
+        long endTime = System.nanoTime();
+
+        // Calculate elapsed time in milliseconds
+        long elapsedTime = (endTime - startTime) / 1_000_000; // Convert nanoseconds to milliseconds
+        System.out.println("AI move computation time: " + elapsedTime + " ms");
+
         return bestMove;
     }
 
@@ -87,13 +103,15 @@ public class AIManagerNew implements AIManager {
      * @param isMaximizing true if the current player is maximizing their score
      * @return the utility value of the current board state
      */
-    private int minimax(Board simulatedBoard, int depth, int alpha, int beta, boolean isMaximizing) {
+    private int minimax(Board simulatedBoard, int depth, int alpha, int beta, boolean isMaximizing) throws TimeLimitExceededException {
         // Base case: Check if the game is over or if the search depth is reached
         if (depth == 0 || simulatedBoard.checkGameStatus().isGameOver()) {
             return simulatedBoard.evaluateBoard(); // Evaluate the utility of the board
         }
 
-
+        if ((System.nanoTime() - startTime) / 1_000_000 > TIME_LIMIT_MS) {
+            throw new TimeLimitExceededException(); // Algorithmus abbrechen
+        }
 
         if (isMaximizing) {
             int maxEval = Integer.MIN_VALUE;
@@ -194,53 +212,36 @@ public class AIManagerNew implements AIManager {
         if( amountPossibleMoves > 8) {
             currentDepth = INITIAL_DEPTH;
         } else if (amountPossibleMoves > 4) {
-            currentDepth = INITIAL_DEPTH + 3;
-        } else if (amountPossibleMoves > 3) {
-            currentDepth = INITIAL_DEPTH + 4;
-        } else if (amountPossibleMoves > 2) {
             currentDepth = INITIAL_DEPTH + 5;
-        } else {
+        } else if (amountPossibleMoves > 3) {
             currentDepth = INITIAL_DEPTH + 6;
+        } else if (amountPossibleMoves > 2) {
+            currentDepth = INITIAL_DEPTH + 7;
+        } else {
+            currentDepth = INITIAL_DEPTH + 8;
         }
     }
 
-    // Generate a list of all possible moves for a player
     private List<Move> getAllPossibleMoves(int player, Board board) {
-        // Get the player's holes
         int[] playerHoles = board.getPlayerHoles(player);
-
-        // Initialize an empty list to store possible moves
         List<Move> possibleMoves = new ArrayList<>();
 
-        // Iterate over all player holes
         for (int hole : playerHoles) {
-            // Check for each color
             for (SeedColor color : SeedColor.values()) {
-                if (board.hasSeeds(hole, color)) { // Check if the hole has seeds of this color
-                    possibleMoves.add(new Move(hole, color)); // Add the move to the list
+                if (board.hasSeeds(hole, color)) {
+                    possibleMoves.add(new Move(hole, color));
                 }
             }
         }
 
-        // Sort the moves based on the specified criteria
+        // Effiziente Sortierung der Züge basierend auf einer statischen Heuristik
         possibleMoves.sort((move1, move2) -> {
-            // Evaluate the "quality" of the moves
-            Board simulationBoard = board.copy();
-            int capturedSeeds1 = simulationBoard.sowSeedsForSimulation(move1.hole(), move1.color());
-            int capturedSeeds2 = simulationBoard.sowSeedsForSimulation(move2.hole(), move2.color());
-
-            // First sort by move quality (higher is better)
-            if (capturedSeeds1 != capturedSeeds2) {
-                return Integer.compare(capturedSeeds2, capturedSeeds1); // Higher captured seeds come first
-            }
-
-            // If quality is equal, sort by seed count in the starting hole (descending)
-            int seedsInHole1 = board.getSeedsInHole(move1.hole(), move1.color());
-            int seedsInHole2 = board.getSeedsInHole(move2.hole(), move2.color());
-
-            return Integer.compare(seedsInHole1, seedsInHole2);
+            int eval1 = board.getSeedsInHole(move1.hole(), move1.color());
+            int eval2 = board.getSeedsInHole(move2.hole(), move2.color());
+            return Integer.compare(eval2, eval1); // Absteigend sortieren
         });
 
         return possibleMoves;
     }
+
 }
