@@ -17,12 +17,12 @@ public class GameFactory {
             case PLAYER_VS_AI_LOCAL -> {
                 Board board = new Board();
                 HumanPlayer player1 = new HumanPlayer();
-                AIPlayer player2 = new AIPlayer(new AIManagerNew());
+                AIPlayer player2 = new AIPlayer(new AIManagerTest());
                 return new Game(board, player1, player2);
             }
             case AI_VS_PLAYER_LOCAL -> {
                 Board board = new Board();
-                AIPlayer player1 = new AIPlayer(new AIManagerNew());
+                AIPlayer player1 = new AIPlayer(new AIManagerTest());
                 HumanPlayer player2 = new HumanPlayer();
                 return new Game(board, player1, player2);
             }

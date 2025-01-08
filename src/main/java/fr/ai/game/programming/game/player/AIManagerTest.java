@@ -4,6 +4,7 @@ import fr.ai.game.programming.game.elements.Board;
 import fr.ai.game.programming.game.elements.SeedColor;
 
 import java.util.ArrayList;
+//import java.util.Arrays;
 import java.util.List;
 
 
@@ -39,18 +40,20 @@ public class AIManagerTest implements AIManager {
         // Generate a sorted list of all possible moves for the player
         List<Move> possibleMoves = getAllPossibleMoves(player, board);
 
-        for (Move move : possibleMoves) {
+        /*for (Move move : possibleMoves) {
             System.out.println(move);
-        }
+        }*/
 
         optimizeDepth(possibleMoves.size());
-        System.out.println(currentDepth);
+        System.out.println("Current depth: " + currentDepth);
 
         // Iterate through all holes to find the best move
         for (Move move : possibleMoves) {
                 if (board.hasSeeds(move.hole(), move.color())) { // Check if seeds of this color exist in the hole
                     // Create a temporary board state for simulation
                     Board simulatedBoard = board.copy();
+                    /*System.out.println("[DEBUG] Trying to sow from hole=" + move.hole() 
+                   + ", currentPlayer=" + board.getCurrentPlayer());*/
                     simulatedBoard.sowSeeds(move.hole(), move.color()); // Perform the move on the simulated board
 
                     // Calculate the utility of the move using the minimax algorithm
@@ -78,80 +81,81 @@ public class AIManagerTest implements AIManager {
 
         return bestMove;
     }
+    
 
     /**
-     * Minimax algorithm with Alpha-Beta pruning to evaluate the best move.
-     * @param simulatedBoard the current state of the board
-     * @param depth the depth of the recursion
-     * @param alpha the alpha value for pruning
-     * @param beta the beta value for pruning
-     * @param isMaximizing true if the current player is maximizing their score
-     * @return the utility value of the current board state
-     */
-    private int minimax(Board simulatedBoard, int depth, int alpha, int beta, boolean isMaximizing) {
-        // Base case: Check if the game is over or if the search depth is reached
-        if (depth == 0 || simulatedBoard.checkGameStatus().isGameOver()) {
-            return simulatedBoard.evaluateBoard(); // Evaluate the utility of the board
-        }
-
-
-
-        if (isMaximizing) {
-            int maxEval = Integer.MIN_VALUE;
-            List<Move> possibleMoves = getAllPossibleMoves(2, simulatedBoard);
-            for (Move move : possibleMoves) {
-                    if (simulatedBoard.hasSeeds(move.hole(), move.color())) {
-                        // Simulate the move
-                        Board childBoard = simulatedBoard.copy();
-                        childBoard.sowSeeds(move.hole(), move.color());
-                        childBoard.switchPlayer();
-
-                        // Check if this move is a winning move
-                        if (childBoard.checkGameStatus().getWinner() == 1) {
-                            return Integer.MAX_VALUE; // Immediate win for player 1
-                        }
-
-                        // Recur with the next player (minimizing)
-                        int eval = minimax(childBoard, depth - 1, alpha, beta, false);
-                        maxEval = Math.max(maxEval, eval);
-
-                        // Update alpha and prune if necessary
-                        alpha = Math.max(alpha, eval);
-                        if (alpha >= beta) {
-                            break;
-                        }
-                    }
-            }
-            return maxEval;
-        } else {
-            int minEval = Integer.MAX_VALUE;
-            List<Move> possibleMoves = getAllPossibleMoves(1, simulatedBoard);
-                for (Move move : possibleMoves) {
-                    if (simulatedBoard.hasSeeds(move.hole(), move.color())) {
-                        // Simulate the move
-                        Board childBoard = simulatedBoard.copy();
-                        childBoard.sowSeeds(move.hole(), move.color());
-                        childBoard.switchPlayer();
-
-                        // Check if this move is a winning move
-                        if (childBoard.checkGameStatus().getWinner() == 2) {
-                            return Integer.MIN_VALUE; // Immediate win for player 2
-                        }
-
-                        // Recur with the next player (maximizing)
-                        int eval = minimax(childBoard, depth - 1, alpha, beta, true);
-                        minEval = Math.min(minEval, eval);
-
-                        // Update beta and prune if necessary
-                        beta = Math.min(beta, eval);
-                        if (alpha >= beta) {
-                            break;
-                        }
-                    }
-            }
-            return minEval;
-        }
+ * Minimax with Alpha-Beta pruning
+ * @param simulatedBoard the current board state
+ * @param depth the remaining search depth
+ * @param alpha the alpha value for pruning
+ * @param beta the beta value for pruning
+ * @param isMaximizing true if it is Player 1's turn (maximize)
+ * @return the evaluation score
+ */
+private int minimax(Board simulatedBoard, int depth, int alpha, int beta, boolean isMaximizing) {
+    // Base case: depth = 0 or game over
+    if (depth == 0 || simulatedBoard.checkGameStatus().isGameOver()) {
+        return simulatedBoard.evaluateBoardHeuristic();
     }
+
+    if (isMaximizing) {
+        int maxEval = Integer.MIN_VALUE;
+        // Generate possible moves for Player 1
+        List<Move> possibleMoves = getAllPossibleMoves(1, simulatedBoard);
+        
+        for (Move move : possibleMoves) {
+            if (simulatedBoard.hasSeeds(move.hole(), move.color())) {
+                Board childBoard = simulatedBoard.copy();
+                // Ensure we're setting the correct player before making the move
+                childBoard.forceCurrentPlayer(1);
+                try {
+                    childBoard.sowSeeds(move.hole(), move.color());
+                    childBoard.switchPlayer(); // Switch to Player 2 for next turn
+                    
+                    int eval = minimax(childBoard, depth - 1, alpha, beta, false);
+                    maxEval = Math.max(maxEval, eval);
+                    alpha = Math.max(alpha, eval);
+                    
+                    if (alpha >= beta) {
+                        break; // Beta cutoff
+                    }
+                } catch (IllegalArgumentException e) {
+                    // Skip invalid moves
+                    continue;
+                }
+            }
+        }
+        return maxEval;
+    } else {
+        int minEval = Integer.MAX_VALUE;
+        // Generate possible moves for Player 2
+        List<Move> possibleMoves = getAllPossibleMoves(2, simulatedBoard);
+        
+        for (Move move : possibleMoves) {
+            if (simulatedBoard.hasSeeds(move.hole(), move.color())) {
+                Board childBoard = simulatedBoard.copy();
+                // Ensure we're setting the correct player before making the move
+                childBoard.forceCurrentPlayer(2);
+                try {
+                    childBoard.sowSeeds(move.hole(), move.color());
+                    childBoard.switchPlayer(); // Switch to Player 1 for next turn
+                    
+                    int eval = minimax(childBoard, depth - 1, alpha, beta, true);
+                    minEval = Math.min(minEval, eval);
+                    beta = Math.min(beta, eval);
+                    
+                    if (alpha >= beta) {
+                        break; // Alpha cutoff
+                    }
+                } catch (IllegalArgumentException e) {
+                    // Skip invalid moves
+                    continue;
+                }
+            }
+        }
+        return minEval;
+    }
+}
 
     /**
      * Find a random move for the player.
@@ -186,6 +190,8 @@ public class AIManagerTest implements AIManager {
         }
     }
 
+    
+
 
     /**
      * Optimize the depth of the Minimax algorithm based on the current game state.
@@ -209,6 +215,7 @@ public class AIManagerTest implements AIManager {
     private List<Move> getAllPossibleMoves(int player, Board board) {
         // Get the player's holes
         int[] playerHoles = board.getPlayerHoles(player);
+        //System.out.println("Player " + player + " holes: " + Arrays.toString(playerHoles));
 
         // Initialize an empty list to store possible moves
         List<Move> possibleMoves = new ArrayList<>();
@@ -224,23 +231,30 @@ public class AIManagerTest implements AIManager {
         }
 
         // Sort the moves based on the specified criteria
-        possibleMoves.sort((move1, move2) -> {
-            // Evaluate the "quality" of the moves
-            Board simulationBoard = board.copy();
-            int capturedSeeds1 = simulationBoard.sowSeedsForSimulation(move1.hole(), move1.color());
-            int capturedSeeds2 = simulationBoard.sowSeedsForSimulation(move2.hole(), move2.color());
+possibleMoves.sort((move1, move2) -> {
+    // Evaluate the "quality" of the moves
+    // 1) For move1
+    Board simulationBoard1 = board.copy();
+    simulationBoard1.forceCurrentPlayer(player);   // <--- ensure it matches
+    int capturedSeeds1 = simulationBoard1.sowSeedsForSimulation(move1.hole(), move1.color());
 
-            // First sort by move quality (higher is better)
-            if (capturedSeeds1 != capturedSeeds2) {
-                return Integer.compare(capturedSeeds2, capturedSeeds1); // Higher captured seeds come first
-            }
+    // 2) For move2
+    Board simulationBoard2 = board.copy();
+    simulationBoard2.forceCurrentPlayer(player);   // <--- ensure it matches
+    int capturedSeeds2 = simulationBoard2.sowSeedsForSimulation(move2.hole(), move2.color());
 
-            // If quality is equal, sort by seed count in the starting hole (descending)
-            int seedsInHole1 = board.getSeedsInHole(move1.hole(), move1.color());
-            int seedsInHole2 = board.getSeedsInHole(move2.hole(), move2.color());
+    // Then compare capturedSeeds1 vs capturedSeeds2, etc.
+    if (capturedSeeds1 != capturedSeeds2) {
+        return Integer.compare(capturedSeeds2, capturedSeeds1); // Higher captured seeds come first
+    }
 
-            return Integer.compare(seedsInHole1, seedsInHole2);
-        });
+    // If quality is equal, sort by seed count in the starting hole (descending)
+    int seedsInHole1 = board.getSeedsInHole(move1.hole(), move1.color());
+    int seedsInHole2 = board.getSeedsInHole(move2.hole(), move2.color());
+
+    return Integer.compare(seedsInHole1, seedsInHole2);
+});
+
 
         return possibleMoves;
     }
