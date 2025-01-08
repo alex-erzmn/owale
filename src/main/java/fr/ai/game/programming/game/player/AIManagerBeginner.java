@@ -3,18 +3,20 @@ package fr.ai.game.programming.game.player;
 import fr.ai.game.programming.game.elements.Board;
 import fr.ai.game.programming.game.elements.SeedColor;
 
+import javax.naming.TimeLimitExceededException;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * AI manager for the Awale game. Implements the Minimax algorithm with Alpha-Beta pruning and random move selection.
  */
-public class AIManagerOld implements AIManager {
+public class AIManagerBeginner implements AIManager {
     private static final int INITIAL_DEPTH = 5; // Initial depth for Minimax algorithm
+    private static final int TIME_LIMIT_MS = 2000; // Time limit for the Minimax algorithm
     private int currentDepth = INITIAL_DEPTH; // Initial depth for Minimax algorithm
-    private static final int MAX_DEPTH = 20; // Maximum depth for Minimax algorithm
+    private long startTime;
 
-    public AIManagerOld() {
+    public AIManagerBeginner() {
     }
 
     public Move findMove(Board board) {
@@ -59,6 +61,9 @@ public class AIManagerOld implements AIManager {
      * @return the best move which includes seed color and number of seeds
      */
     private Move findBestMove(Board board) {
+        // Start timing
+        startTime = System.nanoTime();
+
         int player = board.getCurrentPlayer();
         // Define initial alpha and beta values
         int alpha = Integer.MIN_VALUE;
@@ -71,10 +76,6 @@ public class AIManagerOld implements AIManager {
         // Generate a sorted list of all possible moves for the player
         List<Move> possibleMoves = getAllPossibleMoves(player, board);
 
-        for (Move move : possibleMoves) {
-            System.out.println(move);
-        }
-
         optimizeDepth(possibleMoves.size());
         System.out.println(currentDepth);
 
@@ -86,7 +87,16 @@ public class AIManagerOld implements AIManager {
                     simulatedBoard.sowSeeds(move.hole(), move.color()); // Perform the move on the simulated board
 
                     // Calculate the utility of the move using the minimax algorithm
-                    int moveValue = minimax(simulatedBoard, currentDepth, alpha, beta, player == 2);
+                    int moveValue;
+                    try {
+                        // Calculate the utility of the move using the minimax algorithm
+                        moveValue = minimax(simulatedBoard, currentDepth, alpha, beta, player == 2);
+
+                    } catch (TimeLimitExceededException e) {
+                        System.out.println("Time limit exceeded. Returning the best move found so far.");
+                        System.out.println("AI move computation time: " + TIME_LIMIT_MS + " ms");
+                        return bestMove;
+                    }
 
                     // Update the best move if the current move has a better value
                     if ((player == 1 && moveValue > bestValue) || (player == 2 && moveValue < bestValue)) {
@@ -108,6 +118,13 @@ public class AIManagerOld implements AIManager {
                 }
         }
 
+        // End timing
+        long endTime = System.nanoTime();
+
+        // Calculate elapsed time in milliseconds
+        long elapsedTime = (endTime - startTime) / 1_000_000; // Convert nanoseconds to milliseconds
+        System.out.println("AI move computation time: " + elapsedTime + " ms");
+
         return bestMove;
     }
 
@@ -120,13 +137,15 @@ public class AIManagerOld implements AIManager {
      * @param isMaximizing true if the current player is maximizing their score
      * @return the utility value of the current board state
      */
-    private int minimax(Board simulatedBoard, int depth, int alpha, int beta, boolean isMaximizing) {
+    private int minimax(Board simulatedBoard, int depth, int alpha, int beta, boolean isMaximizing) throws TimeLimitExceededException {
         // Base case: Check if the game is over or if the search depth is reached
         if (depth == 0 || simulatedBoard.checkGameStatus().isGameOver()) {
             return simulatedBoard.evaluateBoard(); // Evaluate the utility of the board
         }
 
-
+        if ((System.nanoTime() - startTime) / 1_000_000 > TIME_LIMIT_MS) {
+            throw new TimeLimitExceededException(); // Algorithmus abbrechen
+        }
 
         if (isMaximizing) {
             int maxEval = Integer.MIN_VALUE;

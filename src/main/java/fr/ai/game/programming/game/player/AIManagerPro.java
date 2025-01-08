@@ -5,20 +5,20 @@ import fr.ai.game.programming.game.elements.SeedColor;
 
 import javax.naming.TimeLimitExceededException;
 import java.util.ArrayList;
+//import java.util.Arrays;
 import java.util.List;
 
 
 /**
- * @Yassin here you can try to improve the AIManager implementation
  * AI manager for the Awale game. Implements the Minimax algorithm with Alpha-Beta pruning and random move selection.
  */
-public class AIManagerTest implements AIManager {
+public class AIManagerPro implements AIManager {
     private static final int INITIAL_DEPTH = 5; // Initial depth for Minimax algorithm
     private static final int TIME_LIMIT_MS = 2000; // Time limit for the Minimax algorithm
     private int currentDepth = INITIAL_DEPTH; // Initial depth for Minimax algorithm
     private long startTime;
 
-    public AIManagerTest() {}
+    public AIManagerPro() {}
 
     public Move findMove(Board board) {
         return findBestMove(board);

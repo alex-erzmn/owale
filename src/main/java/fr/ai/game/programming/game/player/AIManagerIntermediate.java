@@ -11,13 +11,13 @@ import java.util.List;
 /**
  * AI manager for the Awale game. Implements the Minimax algorithm with Alpha-Beta pruning and random move selection.
  */
-public class AIManagerNew implements AIManager {
+public class AIManagerIntermediate implements AIManager {
     private static final int INITIAL_DEPTH = 5; // Initial depth for Minimax algorithm
     private static final int TIME_LIMIT_MS = 2000; // Time limit for the Minimax algorithm
     private int currentDepth = INITIAL_DEPTH; // Initial depth for Minimax algorithm
     private long startTime;
 
-    public AIManagerNew() {}
+    public AIManagerIntermediate() {}
 
     public Move findMove(Board board) {
         return findBestMove(board);
