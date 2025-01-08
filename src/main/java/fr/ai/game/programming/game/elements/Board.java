@@ -161,15 +161,20 @@ public class Board {
      * Sows seeds from the given hole in the specified color.
      */
     public void sowSeeds(int hole, SeedColor seedColor) {
+        /*System.out.println("this is the sowSeeds call [DEBUG Board.sowSeeds] hole=" + hole 
+        + ", currentPlayer=" + currentPlayer 
+        + ", color=" + seedColor);*/
         if (hole < 0 || hole >= TOTAL_HOLES || getSeedsInHole(hole) ==0 || !hasSeeds(hole, seedColor)) {
             throw new IllegalArgumentException("Invalid move! No " + seedColor + " seeds in hole " + (hole + 1) + ". Choose another color or hole.");
         }
-
         if (hole % 2 == 1 && currentPlayer == 1) {
-            throw new IllegalArgumentException("Player 1 cannot sow seeds from Player 2's holes! Choose another hole.");
+            System.out.println("DEBUG: hole=" + hole + ", currentPlayer=1 => throwing exception");
+            throw new IllegalArgumentException("Player 1 cannot sow seeds...");
         } else if (hole % 2 == 0 && currentPlayer == 2) {
-            throw new IllegalArgumentException("Player 2 cannot sow seeds from Player 1's holes! Choose another hole.");
+            System.out.println("DEBUG: hole=" + hole + ", currentPlayer=2 => throwing exception");
+            throw new IllegalArgumentException("Player 2 cannot sow seeds...");
         }
+        
 
         int seedsToSow = takeSeedsFromHole(hole, seedColor);
 
@@ -231,6 +236,14 @@ public class Board {
         }
         return (oppositeHole - 2 + TOTAL_HOLES) % TOTAL_HOLES;
     }
+
+    public void forceCurrentPlayer(int player) {
+        if (player != 1 && player != 2) {
+            throw new IllegalArgumentException("Invalid player: " + player);
+        }
+        this.currentPlayer = player;
+    }
+    
 
     /**
      * Captures seeds based on the game rules. The method captures seeds in the opponent's row if the last seed is sown
@@ -506,4 +519,68 @@ public class Board {
         String paddingSpaces = " ".repeat(padding);
         return paddingSpaces + text + " ".repeat(width - text.length() - padding);
     }
+    
+    //this is a test by Yassin, AI logic shouldn't be here
+    public int evaluateBoardHeuristic() {
+        // 1) Check if game is over
+        GameStatus status = checkGameStatus();
+        if (status.isGameOver()) {
+            // If P1 has won, big positive
+            if (status.getWinner() == 1) {
+                return +100000;
+            }
+            // If P2 has won, big negative
+            else if (status.getWinner() == 2) {
+                return -100000;
+            }
+            // Draw
+            return 0;
+        }
+
+        // Basic difference from P1's perspective:
+        int seedDiff = player1Seeds - player2Seeds;   // + => P1 leads, - => P2 leads
+    
+        // If you want to weigh seeds on board (physically in holes 1,3,5.. for P1 vs holes 2,4,6.. for P2):
+        int seedsP1OnBoard = countSeedsOnBoard(1);
+        int seedsP2OnBoard = countSeedsOnBoard(2);
+        int boardDiff = seedsP1OnBoard - seedsP2OnBoard;
+
+        int score = 10 * seedDiff + 2 * boardDiff;
+    
+        // 5) Hole-by-hole nuance
+        int holeAdjust = holeByHoleEvaluation();
+        score += holeAdjust;
+    
+        // 6) Debug prints
+
+    
+        return score;
+    }
+    
+    
+    private int holeByHoleEvaluation() {
+        int adjustment = 0;
+        int[] myHoles = getPlayerHoles(currentPlayer);
+        for (int holeIndex : myHoles) {
+            int totalSeeds = holes[holeIndex][0] + holes[holeIndex][1];
+            if (totalSeeds == 1) {
+                adjustment -= 2; 
+            } else if (totalSeeds == 2 || totalSeeds == 3) {
+                adjustment -= 3;
+            }
+            // Possibly more logic for 4+ seeds if relevant to your strategy
+        }
+        return adjustment;
+    }
+    
+    private int countSeedsOnBoard(int player) {
+        int[] playerHoles = getPlayerHoles(player);
+        int total = 0;
+        for (int holeIndex : playerHoles) {
+            total += (holes[holeIndex][0] + holes[holeIndex][1]);
+        }
+        return total;
+    }
+    
 }
+
