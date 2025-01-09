@@ -519,8 +519,8 @@ public class Board {
         String paddingSpaces = " ".repeat(padding);
         return paddingSpaces + text + " ".repeat(width - text.length() - padding);
     }
-    
-    //this is a test by Yassin, AI logic shouldn't be here
+
+    //Board state for AIManagerPro
     public int evaluateBoardHeuristic() {
         // 1) Check if game is over
         GameStatus status = checkGameStatus();
@@ -556,21 +556,77 @@ public class Board {
     
         return score;
     }
+
+    //methods to understand and evaluate the board state for the AIManagerTest called later AIManagerUltimate
+    //this is a test method to evaluate the board state
+    public int evaluateBoardHeuristicUltimate() {
+        // 1) Check if game is over
+        GameStatus status = checkGameStatus();
+        if (status.isGameOver()) {
+            // If P1 has won, big positive
+            if (status.getWinner() == 1) {
+                return +100000;
+            }
+            // If P2 has won, big negative
+            else if (status.getWinner() == 2) {
+                return -100000;
+            }
+            // Draw
+            return 0;
+        }
+
+        // Basic difference from P1's perspective:
+        int seedDiff = player1Seeds - player2Seeds;   // + => P1 leads, - => P2 leads
+    
+        int seedsP1OnBoard = countSeedsOnBoard(1);
+        int seedsP2OnBoard = countSeedsOnBoard(2);
+        int boardDiff = seedsP1OnBoard - seedsP2OnBoard;
+
+        int score = getSeedWeight() * seedDiff + getBoardWeight() * boardDiff
+                    + holeByHoleEvaluation() 
+                    + mobilityAdvantage() 
+                    + starvationPenalty();
+        return score;
+    }
     
     
     private int holeByHoleEvaluation() {
         int adjustment = 0;
         int[] myHoles = getPlayerHoles(currentPlayer);
-        for (int holeIndex : myHoles) {
-            int totalSeeds = holes[holeIndex][0] + holes[holeIndex][1];
+        for (int i = 0; i < myHoles.length; i++) {
+            int holeIndex = myHoles[i];
+            int totalSeeds = getSeedsInHole(holeIndex);
+            
+            // Penalize holes with 1 seed, but more if adjacent to opponent's hole
             if (totalSeeds == 1) {
-                adjustment -= 2; 
-            } else if (totalSeeds == 2 || totalSeeds == 3) {
-                adjustment -= 3;
+                adjustment -= 2;
+                if (i > 0 && getPlayerForHole(myHoles[i - 1]) != currentPlayer) adjustment -= 3;
+                if (i < myHoles.length - 1 && getPlayerForHole(myHoles[i + 1]) != currentPlayer) adjustment -= 3;
             }
-            // Possibly more logic for 4+ seeds if relevant to your strategy
+            // Penalize holes with 2 or 3 seeds, heavy penalty if adjacent to opponent's hole
+            else if (totalSeeds == 2 || totalSeeds == 3) {
+                adjustment -= 5;
+                if (i > 0 && getPlayerForHole(myHoles[i - 1]) != currentPlayer) adjustment -= 5;
+                if (i < myHoles.length - 1 && getPlayerForHole(myHoles[i + 1]) != currentPlayer) adjustment -= 5;
+            }
+            // Bonus for having more seeds, especially if it sets up for a capture
+            else if (totalSeeds > 3) {
+                adjustment += (totalSeeds - 3); // Small bonus for having more seeds
+                // Check if sowing could lead to captures in the next few moves
+                if (couldLeadToCapture(holeIndex, totalSeeds)) adjustment += 5;
+            }
         }
         return adjustment;
+    }
+    
+    private int getPlayerForHole(int holeIndex) {
+        return (holeIndex % 2 == 0) ? 2 : 1; // Even holes for player 2, odd for player 1
+    }
+    
+    private boolean couldLeadToCapture(int holeIndex, int seeds) {
+        // Simplified check: if sowing from this hole would land on 2 or 3 seeds, return true
+        int lastHole = (holeIndex + seeds) % TOTAL_HOLES;
+        return getSeedsInHole(lastHole) + 1 == 2 || getSeedsInHole(lastHole) + 1 == 3;
     }
     
     private int countSeedsOnBoard(int player) {
@@ -582,5 +638,49 @@ public class Board {
         return total;
     }
     
+    public int totalSeeds() {
+        int total = 0;
+        for (int[] hole : holes) {
+            for (int seeds : hole) {
+                total += seeds;
+            }
+        }
+        return total;
+    }
+
+    private int getSeedWeight() {
+        int totalSeeds = totalSeeds();
+        if (totalSeeds > 64) return 5; // Early game, less focus on capturing
+        if (totalSeeds > 32) return 15; // Mid game, balancing capture and position
+        return 25; // Late game, capturing becomes critical
+    }
+    
+    private int getBoardWeight() {
+        int totalSeeds = totalSeeds();
+        if (totalSeeds > 64) return 10; // Early game, board position matters more
+        return 5; // Later, capturing becomes more important than position
+    }
+    
+    
+    /*The method aims to quantify the difference in mobility between the two players*/
+    private int mobilityAdvantage() {
+        int player1Moves = countValidMoves(1);
+        int player2Moves = countValidMoves(2);
+        return (player1Moves - player2Moves) * 3; // here this factor is fairly small so not to dominate other factors
+    }
+    
+    private int countValidMoves(int player) {
+        int count = 0;
+        for (int hole : getPlayerHoles(player)) {
+            if (getSeedsInHole(hole) > 0) count++;
+        }
+        return count;
+    }
+
+    private int starvationPenalty() {
+        if (countValidMoves(currentPlayer) == 0) return -500; // large negative value to avoid this situation
+        return 0;
+    }
+
 }
 
