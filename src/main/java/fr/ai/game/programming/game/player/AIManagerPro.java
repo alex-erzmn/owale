@@ -218,18 +218,18 @@ private int minimax(Board simulatedBoard, int depth, int alpha, int beta, boolea
      * The depth is increased every 6 turns to improve the AI performance.
      */
     private void optimizeDepth(int amountPossibleMoves) {
-        if( amountPossibleMoves > 8) {
+        if (amountPossibleMoves > 8) {
             currentDepth = INITIAL_DEPTH;
         } else if (amountPossibleMoves > 6) {
-            currentDepth = INITIAL_DEPTH + 4;
+            currentDepth = INITIAL_DEPTH + 2; // Reduce increase for balance
         } else if (amountPossibleMoves > 4) {
-            currentDepth = INITIAL_DEPTH + 5;
+            currentDepth = INITIAL_DEPTH + 3;
         } else if (amountPossibleMoves > 3) {
-            currentDepth = INITIAL_DEPTH + 6;
+            currentDepth = INITIAL_DEPTH + 4;
         } else if (amountPossibleMoves > 2) {
-            currentDepth = INITIAL_DEPTH + 7;
+            currentDepth = INITIAL_DEPTH + 5;
         } else {
-            currentDepth = INITIAL_DEPTH + 8;
+            currentDepth = INITIAL_DEPTH + 6;
         }
     }
 
