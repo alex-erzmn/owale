@@ -28,7 +28,7 @@ public class GameFactory {
             }
             case AI_VS_AI_LOCAL -> {
                 Board board = new Board();
-                AIPlayer player1 = new AIPlayer(new AIManagerIntermediate());
+                AIPlayer player1 = new AIPlayer(new AIManagerUltimate());
                 AIPlayer player2 = new AIPlayer(new AIManagerPro());
                 return new Game(board, player1, player2);
             }
